@@ -4248,6 +4248,7 @@
   overflow-y: visible;
   position: relative;
   z-index: 1;
+  overflow: unset;
 }
 
 [data-theme="dark"] .table-container {
