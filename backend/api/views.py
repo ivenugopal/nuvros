@@ -4906,17 +4906,15 @@ def get_correlation_matrix(request):
                     "Date",
                     "Brand",
                     "Platform",
-                    "Price_Hygiene",
-                    "Coupon_Hygiene",
-                    "Activation_Hygiene",
-                    "Availability_Hygiene",
-                    "Deal_Hygiene",
-                    "EDD_Hygiene",
-                    "Sold By Validation",
-                    "Rating_Hygiene",
-                    "Catalog_Hygiene",
-                    "GMV",
-                    "Units"
+                    COALESCE(NULLIF(LOWER("Price_Hygiene"), 'nan')::float, 0) AS "Price_Hygiene",
+                    COALESCE(NULLIF(LOWER("Coupon_Hygiene"), 'nan')::float, 0) AS "Coupon_Hygiene",
+                    COALESCE(NULLIF(LOWER("Activation_Hygiene"), 'nan')::float, 0) AS "Activation_Hygiene",
+                    COALESCE(NULLIF(LOWER("Availability_Hygiene"), 'nan')::float, 0) AS "Availability_Hygiene",
+                    COALESCE(NULLIF(LOWER("Deal_Hygiene"), 'nan')::float, 0) AS "Deal_Hygiene",
+                    COALESCE(NULLIF(LOWER("EDD_Hygiene"), 'nan')::float, 0) AS "EDD_Hygiene",
+                    COALESCE("Sold By Validation"::float, 0) AS "Sold By Validation",
+                    COALESCE(NULLIF(LOWER("Rating_Hygiene"), 'nan')::float, 0) AS "Rating_Hygiene",
+                    COALESCE(NULLIF(LOWER("Catalog_Hygiene"), 'nan')::float, 0) AS "Catalog_Hygiene"
                 FROM public.ecom_consolidated
                 {where_clause}
                 ORDER BY "Date" DESC, "Platform", "Brand"
@@ -4939,9 +4937,7 @@ def get_correlation_matrix(request):
                 'EDD_Hygiene',
                 'Sold By Validation',
                 'Rating_Hygiene',
-                'Catalog_Hygiene',
-                'GMV',
-                'Units'
+                'Catalog_Hygiene'
             ]
 
             # Filter out rows with too many invalid values
