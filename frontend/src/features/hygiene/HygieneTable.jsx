@@ -1,57 +1,81 @@
-import React, { useEffect, useState } from 'react';
-import { fetchHygieneTable } from '../../services/api';
-import MultiSelectDropdown from '../../components/common/MultiSelectDropdown';
+import React, { useEffect, useState } from "react";
+import { fetchHygieneTable } from "../../services/api";
+import MultiSelectDropdown from "../../components/common/MultiSelectDropdown";
+import Pagination from "../../components/common/Pagination";
 
 const HygieneTable = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
-    brand: '',
+  const [appliedFilters, setAppliedFilters] = useState({
+    startDate: "",
+    endDate: "",
+    brand: "",
     platform: [],
-    hygiene: 'All'
+    hygiene: "All",
+  });
+  const [localFilters, setLocalFilters] = useState({
+    startDate: "",
+    endDate: "",
+    brand: "",
+    platform: [],
+    hygiene: "All",
   });
   const [options, setOptions] = useState({
     brands: [],
-    platforms: []
+    platforms: [],
   });
   const [hygieneColumns, setHygieneColumns] = useState({});
-  const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [totalRecords, setTotalRecords] = useState(0);
 
   const hygieneOptions = [
-    'All',
-    'Price Hygiene',
-    'Coupon Hygiene',
-    'Activation_Hygiene',
-    'Availability Hygiene',
-    'Deal Hygiene',
-    'EDD Hygiene',
-    'Sold By Validation',
-    'Rating Hygiene',
-    'Catalog_Hygiene'
+    "All",
+    "Price Hygiene",
+    "Coupon Hygiene",
+    "Activation_Hygiene",
+    "Availability Hygiene",
+    "Deal Hygiene",
+    "EDD Hygiene",
+    "Sold By Validation",
+    "Rating Hygiene",
+    "Catalog_Hygiene",
   ];
 
   const commonColumns = [
-    'Date', 'Brand', 'Platform', 'SKU Code', 'ASIN', 'Generic Title',
-    'Category', 'Sub-category', 'GMV', 'Units'
+    "Date",
+    "Brand",
+    "Platform",
+    "SKU Code",
+    "ASIN",
+    "Generic Title",
+    "Category",
+    "Sub-category",
+    "GMV",
+    "Units",
   ];
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetchHygieneTable(filters);
+      const response = await fetchHygieneTable(appliedFilters);
       if (response.success) {
-        setData(response.data);
+        setTotalRecords(response.data.length);
         setOptions(response.options);
         setHygieneColumns(response.hygiene_columns);
+
+        // Apply pagination to the data
+        const startIndex = (currentPage - 1) * pageSize;
+        const endIndex = startIndex + pageSize;
+        const paginatedData = response.data.slice(startIndex, endIndex);
+        setData(paginatedData);
       } else {
-        setError(response.error || 'Failed to load data');
+        setError(response.error || "Failed to load data");
       }
     } catch (err) {
-      setError('Failed to load data');
+      setError("Failed to load data");
     } finally {
       setLoading(false);
     }
@@ -59,26 +83,55 @@ const HygieneTable = () => {
 
   useEffect(() => {
     loadData();
-  }, [filters]);
+  }, [appliedFilters, currentPage, pageSize]);
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
+    setLocalFilters((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   };
+
+  const handleApplyFilters = () => {
+    setAppliedFilters({ ...localFilters });
+    setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  // Pagination handlers
+  const handlePageChange = (newPage) => {
+    setCurrentPage(newPage);
+  };
+
+  const handlePageSizeChange = (newPageSize) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when page size changes
+  };
+
+  const handleFirstPage = () => handlePageChange(1);
+  const handlePrevPage = () => handlePageChange(currentPage - 1);
+  const handleNextPage = () => handlePageChange(currentPage + 1);
+  const handleLastPage = () =>
+    handlePageChange(Math.ceil(totalRecords / pageSize));
+
+  // Calculate pagination values
+  const totalPages = Math.ceil(totalRecords / pageSize);
+  const hasPrevious = currentPage > 1;
+  const hasNext = currentPage < totalPages;
+  const startRecord = (currentPage - 1) * pageSize + 1;
+  const endRecord = Math.min(currentPage * pageSize, totalRecords);
+  const infoLabel = `Showing ${startRecord}-${endRecord} of ${totalRecords} records`;
 
   const getColumns = () => {
     let columns = [...commonColumns];
 
-    if (filters.hygiene === 'All') {
+    if (appliedFilters.hygiene === "All") {
       // Include all hygiene-specific columns
-      Object.values(hygieneColumns).forEach(hygieneCols => {
+      Object.values(hygieneColumns).forEach((hygieneCols) => {
         columns = [...columns, ...hygieneCols];
       });
-    } else if (hygieneColumns[filters.hygiene]) {
+    } else if (hygieneColumns[appliedFilters.hygiene]) {
       // Include only columns for selected hygiene type
-      columns = [...columns, ...hygieneColumns[filters.hygiene]];
+      columns = [...columns, ...hygieneColumns[appliedFilters.hygiene]];
     }
 
     // Remove duplicates
@@ -88,55 +141,64 @@ const HygieneTable = () => {
   const renderFilters = () => (
     <div className="filters-panel">
       <div className="filters-row">
-        <label>
-          Start Date
+        <div className="filter-group">
+          <label>Start Date</label>
           <input
             type="date"
-            value={filters.startDate}
-            onChange={(e) => handleFilterChange('startDate', e.target.value)}
+            value={localFilters.startDate}
+            onChange={(e) => handleFilterChange("startDate", e.target.value)}
           />
-        </label>
-        <label>
-          End Date
+        </div>
+        <div className="filter-group">
+          <label>End Date</label>
           <input
             type="date"
-            value={filters.endDate}
-            onChange={(e) => handleFilterChange('endDate', e.target.value)}
+            value={localFilters.endDate}
+            onChange={(e) => handleFilterChange("endDate", e.target.value)}
           />
-        </label>
-        <label>
-          Brand
+        </div>
+        <div className="filter-group">
+          <label>Brand</label>
           <select
-            value={filters.brand}
-            onChange={(e) => handleFilterChange('brand', e.target.value)}
+            value={localFilters.brand}
+            onChange={(e) => handleFilterChange("brand", e.target.value)}
           >
             <option value="">All Brands</option>
-            {options.brands.map(brand => (
-              <option key={brand} value={brand}>{brand}</option>
+            {options.brands.map((brand) => (
+              <option key={brand} value={brand}>
+                {brand}
+              </option>
             ))}
           </select>
-        </label>
+        </div>
         <div className="filter-group">
           <label>Platform</label>
           <MultiSelectDropdown
             options={options.platforms}
-            values={filters.platform}
-            onChange={(values) => handleFilterChange('platform', values)}
+            values={localFilters.platform}
+            onChange={(values) => handleFilterChange("platform", values)}
             triggerPlaceholder="Select platforms..."
             selectAllLabel="All Platforms"
           />
         </div>
-        <label>
-          Hygiene Type
+        <div className="filter-group">
+          <label>Category</label>
           <select
-            value={filters.hygiene}
-            onChange={(e) => handleFilterChange('hygiene', e.target.value)}
+            value={localFilters.hygiene}
+            onChange={(e) => handleFilterChange("hygiene", e.target.value)}
           >
-            {hygieneOptions.map(hygiene => (
-              <option key={hygiene} value={hygiene}>{hygiene}</option>
+            {hygieneOptions.map((hygiene) => (
+              <option key={hygiene} value={hygiene}>
+                {hygiene}
+              </option>
             ))}
           </select>
-        </label>
+        </div>
+        <div className="filter-group">
+          <button className="apply-filters-btn" onClick={handleApplyFilters}>
+            Apply
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -153,7 +215,7 @@ const HygieneTable = () => {
         <table className="data-table">
           <thead>
             <tr>
-              {columns.map(column => (
+              {columns.map((column) => (
                 <th key={column} title={column}>
                   {column}
                 </th>
@@ -163,9 +225,9 @@ const HygieneTable = () => {
           <tbody>
             {data.map((row, index) => (
               <tr key={index}>
-                {columns.map(column => (
-                  <td key={column} title={row[column] || '-'}>
-                    {row[column] || '-'}
+                {columns.map((column) => (
+                  <td key={column} title={row[column] || "-"}>
+                    {row[column] || "-"}
                   </td>
                 ))}
               </tr>
@@ -180,25 +242,35 @@ const HygieneTable = () => {
     <div className="hygiene-table-container">
       <div className="table-header">
         <h2>Hygiene Table View</h2>
-        <button
-          className="toggle-filters-btn"
-          onClick={() => setShowFilters(!showFilters)}
-        >
-          {showFilters ? 'Hide Filters' : 'Show Filters'}
-        </button>
       </div>
 
-      {showFilters && renderFilters()}
+      {renderFilters()}
 
       {loading && <div className="loading">Loading table data...</div>}
       {error && <div className="error">Error: {error}</div>}
 
       <div className="table-info">
-        <p>Showing {data.length} records</p>
-        <p>Selected Hygiene: {filters.hygiene}</p>
+        <p>Selected Category: {appliedFilters.hygiene}</p>
       </div>
 
       {renderTable()}
+
+      {totalRecords > 0 && (
+        <Pagination
+          infoLabel={infoLabel}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          hasPrevious={hasPrevious}
+          hasNext={hasNext}
+          onFirst={handleFirstPage}
+          onPrev={handlePrevPage}
+          onNext={handleNextPage}
+          onLast={handleLastPage}
+          pageSize={pageSize}
+          onPageSizeChange={handlePageSizeChange}
+          pageSizeId="hygiene-page-size"
+        />
+      )}
     </div>
   );
 };

@@ -9,6 +9,8 @@ import calendar
 from django.utils.crypto import pbkdf2
 import os
 import logging
+import math
+from decimal import Decimal, InvalidOperation
 
 from .models import AppUser
 from .auth import generate_jwt, require_auth, refresh_jwt
@@ -4193,6 +4195,37 @@ def get_inventory_movements(request):
         return Response({'success': False, 'error': str(e)}, status=500)
 
 
+def _sanitize_for_json(value):
+    """Recursively sanitize values so the JSON renderer doesn't see NaN/Infinity.
+
+    - Replace float('nan'), float('inf'), float('-inf') with None
+    - Convert Decimal to float
+    - Recurse into dicts and lists/tuples
+    """
+  
+    import math
+    from decimal import Decimal
+
+    if value is None:
+        return None
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+        return value
+    if isinstance(value, Decimal):
+       
+        try:
+            as_float = float(value)
+        except Exception:
+            return None
+        return _sanitize_for_json(as_float)
+    if isinstance(value, dict):
+        return {k: _sanitize_for_json(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [ _sanitize_for_json(v) for v in value ]
+    return value
+
+
 @api_view(['GET'])
 @require_auth
 def get_hygiene_overview(request):
@@ -4225,6 +4258,7 @@ def get_hygiene_overview(request):
                 """
             )
             table_exists = cursor.fetchone()[0]
+        
 
             if not table_exists:
                 # Return mock data structure for development
@@ -4315,7 +4349,7 @@ def get_hygiene_overview(request):
                 catalog_hygiene_score = calculate_average_percentage_hygiene_mock('catalog_hygiene')
                 sold_by_validation_score = calculate_average_percentage_hygiene_mock('sold_by_validation')
 
-                return Response({
+                response_payload = {
                     'success': True,
                     'data': mock_data,
                     'hygiene_scores': {
@@ -4333,7 +4367,8 @@ def get_hygiene_overview(request):
                         'brands': ['Clear', 'Dove', 'Pantene'],
                         'platforms': ['Amazon', 'Flipkart', 'Myntra']
                     }
-                })
+                }
+                return Response(_sanitize_for_json(response_payload))
 
             # If table exists, query actual data
             where_parts = []
@@ -4412,32 +4447,71 @@ def get_hygiene_overview(request):
                 # Allow rows with up to 3 invalid values
                 return error_count <= 3
 
-            data = [row for row in data if is_valid_row(row)]
+            # Filter and log rows
+            filtered = [row for row in data if is_valid_row(row)]
+            logger.debug("get_hygiene_overview: filtered %d/%d rows", len(filtered), len(data))
+            # Log a small sample to avoid huge logs
+            try:
+                logger.debug("get_hygiene_overview: sample rows (up to 50): %s", json.dumps(filtered[:50], default=str))
+            except Exception:
+                logger.debug("get_hygiene_overview: sample rows repr: %s", repr(filtered[:50]))
+            data = filtered
 
+
+            ERROR_STRINGS = {'#ERROR!', 'N/A', 'NULL', 'null', ''}
+
+            def _parse_percent_number(value):
+                """
+                Accepts '85%', '85', 85, Decimal('85'), etc.
+                Returns float in [0, +inf) or None if invalid/NaN/Inf.
+                Strips '%' and whitespace. Skips error tokens and NaN/Inf.
+                """
+                if value is None:
+                    return None
+
+                # strings: strip, drop %, reject error tokens
+                if isinstance(value, str):
+                    s = value.strip()
+                    if s in ERROR_STRINGS:
+                        return None
+                    # common textual NaN/Inf
+                    if s.lower() in {'nan', '+nan', '-nan', 'inf', '+inf', '-inf', 'infinity', '+infinity', '-infinity'}:
+                        return None
+                    if s.endswith('%'):
+                        s = s[:-1].strip()
+                    try:
+                        f = float(s)
+                    except ValueError:
+                        return None
+                elif isinstance(value, (int, float)):
+                    f = float(value)
+                elif isinstance(value, Decimal):
+                    try:
+                        if value.is_nan() or value.is_infinite():
+                            return None
+                        f = float(value)
+                    except (InvalidOperation, ValueError):
+                        return None
+                else:
+                    return None
+
+                # final guard
+                if math.isnan(f) or math.isinf(f):
+                    return None
+                return f
             # General function to calculate average of percentage-based hygiene scores
             def calculate_average_percentage_hygiene(column_name):
-                """Calculate average of percentage values from a column (e.g., '100%', '50%', '0%')"""
+                """
+                Average a percentage-ish column, ignoring invalid/NaN/Inf values.
+                Accepts values like '100%', '85', 85, Decimal, etc.
+                """
                 values = []
                 for record in data:
-                    hygiene_value = record.get(column_name, '')
-                    if hygiene_value and isinstance(hygiene_value, str):
-                        try:
-                            # Handle common error strings
-                            clean_value = hygiene_value.strip()
-                            if clean_value in ['#ERROR!', 'N/A', 'NULL', 'null', '']:
-                                continue
-
-                            # Remove % and convert to float
-                            if '%' in clean_value:
-                                numeric_value = float(clean_value.replace('%', '').strip())
-                            else:
-                                numeric_value = float(clean_value)
-                            values.append(numeric_value)
-                        except (ValueError, AttributeError):
-                            # Skip invalid values
-                            continue
-                return (sum(values) / len(values)) if values else 0
-
+                    raw = record.get(column_name, '')
+                    f = _parse_percent_number(raw)
+                    if f is not None:
+                        values.append(f)
+                return (sum(values) / len(values)) if values else 0.0
             # Calculate all hygiene scores using the general function
             price_hygiene_score = calculate_average_percentage_hygiene('Price_Hygiene')
             coupon_hygiene_score = calculate_average_percentage_hygiene('Coupon_Hygiene')
@@ -4456,7 +4530,7 @@ def get_hygiene_overview(request):
             cursor.execute('SELECT DISTINCT "Platform" FROM public.ecom_consolidated WHERE "Platform" IS NOT NULL ORDER BY "Platform"')
             platforms = [row[0] for row in cursor.fetchall()]
 
-            return Response({
+            response_payload = {
                 'success': True,
                 'data': data,
                 'hygiene_scores': {
@@ -4474,7 +4548,8 @@ def get_hygiene_overview(request):
                     'brands': brands,
                     'platforms': platforms
                 }
-            })
+            }
+            return Response(_sanitize_for_json(response_payload))
 
     except Exception as e:
         return Response({'success': False, 'error': str(e)}, status=500)
@@ -4626,8 +4701,6 @@ def get_trend_analysis(request):
                     "Live Price",
                     "Sub-Category BSR",
                     "Category BSR",
-                    "GMV",
-                    "Units",
                     "Discount"
                 FROM public.ecom_consolidated
                 {where_clause}
