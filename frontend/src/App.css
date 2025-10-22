@@ -3730,7 +3730,7 @@
   font-weight: 500;
   position: relative;
   cursor: pointer;
-  height: 28px;
+  height: 36px;
 }
 
 .filters-toolbar input[type="date"]::-webkit-calendar-picker-indicator {
