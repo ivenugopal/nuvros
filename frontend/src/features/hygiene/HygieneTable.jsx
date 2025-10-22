@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { fetchHygieneTable } from "../../services/api";
 import MultiSelectDropdown from "../../components/common/MultiSelectDropdown";
 import Pagination from "../../components/common/Pagination";
+import * as XLSX from 'xlsx';
 
 const HygieneTable = () => {
   const [data, setData] = useState([]);
@@ -29,6 +30,7 @@ const HygieneTable = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
   const [totalRecords, setTotalRecords] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const hygieneOptions = [
     "All",
@@ -95,6 +97,32 @@ const HygieneTable = () => {
   const handleApplyFilters = () => {
     setAppliedFilters({ ...localFilters });
     setCurrentPage(1); // Reset to first page when filters change
+  };
+
+  const onDownload = async () => {
+    setIsDownloading(true);
+    try {
+      const response = await fetchHygieneTable(appliedFilters);
+      if (response.success) {
+        const columns = getColumns();
+        const worksheet = XLSX.utils.json_to_sheet(response.data);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Hygiene Data");
+
+        // Generate filename with current date
+        const date = new Date().toISOString().split('T')[0];
+        const filename = `hygiene_data_${date}.xlsx`;
+
+        // Save the file
+        XLSX.writeFile(workbook, filename);
+      } else {
+        console.error("Failed to download data");
+      }
+    } catch (error) {
+      console.error("Download failed:", error);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // Pagination handlers
@@ -197,6 +225,15 @@ const HygieneTable = () => {
         <div className="filter-group">
           <button className="apply-filters-btn" onClick={handleApplyFilters}>
             Apply
+          </button>
+        </div>
+        <div className="filter-group">
+          <button
+            onClick={onDownload}
+            className="btn-ghost"
+            disabled={isDownloading}
+          >
+            {isDownloading ? "Downloading..." : "Download XLSX"}
           </button>
         </div>
       </div>
