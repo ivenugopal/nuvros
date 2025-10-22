@@ -4906,17 +4906,15 @@ def get_correlation_matrix(request):
                     "Date",
                     "Brand",
                     "Platform",
-                    "Price_Hygiene",
-                    "Coupon_Hygiene",
-                    "Activation_Hygiene",
-                    "Availability_Hygiene",
-                    "Deal_Hygiene",
-                    "EDD_Hygiene",
-                    "Sold By Validation",
-                    "Rating_Hygiene",
-                    "Catalog_Hygiene",
-                    "GMV",
-                    "Units"
+                    COALESCE(NULLIF(LOWER("Price_Hygiene"), 'nan')::float, 0) AS "Price_Hygiene",
+                    COALESCE(NULLIF(LOWER("Coupon_Hygiene"), 'nan')::float, 0) AS "Coupon_Hygiene",
+                    COALESCE(NULLIF(LOWER("Activation_Hygiene"), 'nan')::float, 0) AS "Activation_Hygiene",
+                    COALESCE(NULLIF(LOWER("Availability_Hygiene"), 'nan')::float, 0) AS "Availability_Hygiene",
+                    COALESCE(NULLIF(LOWER("Deal_Hygiene"), 'nan')::float, 0) AS "Deal_Hygiene",
+                    COALESCE(NULLIF(LOWER("EDD_Hygiene"), 'nan')::float, 0) AS "EDD_Hygiene",
+                    COALESCE("Sold By Validation"::float, 0) AS "Sold By Validation",
+                    COALESCE(NULLIF(LOWER("Rating_Hygiene"), 'nan')::float, 0) AS "Rating_Hygiene",
+                    COALESCE(NULLIF(LOWER("Catalog_Hygiene"), 'nan')::float, 0) AS "Catalog_Hygiene"
                 FROM public.ecom_consolidated
                 {where_clause}
                 ORDER BY "Date" DESC, "Platform", "Brand"
@@ -4939,9 +4937,7 @@ def get_correlation_matrix(request):
                 'EDD_Hygiene',
                 'Sold By Validation',
                 'Rating_Hygiene',
-                'Catalog_Hygiene',
-                'GMV',
-                'Units'
+                'Catalog_Hygiene'
             ]
 
             # Filter out rows with too many invalid values
@@ -5211,27 +5207,36 @@ def get_hygiene_table_data(request):
             params = []
 
             if start_date:
-                # Convert YYYY-MM-DD to DD-MM-YYYY for database comparison
                 try:
                     start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
                     start_date_formatted = start_date_obj.strftime('%d-%m-%Y')
-                    where_parts.append('"Date" >= %s')
-                    params.append(start_date_formatted)
                 except ValueError:
-                    # If conversion fails, use original date
-                    where_parts.append('"Date" >= %s')
-                    params.append(start_date)
+                    start_date_formatted = start_date
+
+                where_parts.append("""
+                    CASE
+                        WHEN "Date" ~ '^\d{2}-\d{2}-\d{4}$' THEN TO_DATE("Date", 'DD-MM-YYYY')
+                        WHEN "Date" ~ '^\d{4}-\d{2}-\d{2}$' THEN TO_DATE("Date", 'YYYY-MM-DD')
+                        ELSE NULL
+                    END >= TO_DATE(%s, 'DD-MM-YYYY')
+                """)
+                params.append(start_date_formatted)
+
             if end_date:
-                # Convert YYYY-MM-DD to DD-MM-YYYY for database comparison
                 try:
                     end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
                     end_date_formatted = end_date_obj.strftime('%d-%m-%Y')
-                    where_parts.append('"Date" <= %s')
-                    params.append(end_date_formatted)
                 except ValueError:
-                    # If conversion fails, use original date
-                    where_parts.append('"Date" <= %s')
-                    params.append(end_date)
+                    end_date_formatted = end_date
+
+                where_parts.append("""
+                    CASE
+                        WHEN "Date" ~ '^\d{2}-\d{2}-\d{4}$' THEN TO_DATE("Date", 'DD-MM-YYYY')
+                        WHEN "Date" ~ '^\d{4}-\d{2}-\d{2}$' THEN TO_DATE("Date", 'YYYY-MM-DD')
+                        ELSE NULL
+                    END <= TO_DATE(%s, 'DD-MM-YYYY')
+                """)
+                params.append(end_date_formatted)
             if brand:
                 where_parts.append('"Brand" = %s')
                 params.append(brand)
