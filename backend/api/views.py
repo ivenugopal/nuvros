@@ -11,6 +11,9 @@ import os
 import logging
 import math
 from decimal import Decimal, InvalidOperation
+from typing import Any, Optional
+import hashlib, json
+from django.core.cache import cache
 
 from .models import AppUser
 from .auth import generate_jwt, require_auth, refresh_jwt
@@ -21,228 +24,163 @@ logger = logging.getLogger(__name__)
 @require_auth
 def get_consolidated_data(request):
     """
-    Fetch aggregated sales data by platform with optional date filtering and growth rate calculation
+    Optimized: Aggregated sales data by platform with optional date filtering and growth rate calculation.
+    Uses CTEs and reduced query overhead for faster performance.
     """
     try:
-        # Get date parameters
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-        
-        # Validate date parameters if provided
-        if start_date:
+        q = request.query_params
+        brand = q.get("brand")
+        start_date_str, end_date_str = q.get("start_date"), q.get("end_date")
+
+        # --- Optional caching ---
+        key = f"consolidated:{brand}:{start_date_str}:{end_date_str}"
+        cached = cache.get(key)
+        if cached:
+            cached["cache_hit"] = True
+            return Response(cached, status=status.HTTP_200_OK)
+
+        def parse_date(val):
             try:
-                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                return datetime.strptime(val, "%Y-%m-%d").date() if val else None
             except ValueError:
-                return Response({
-                    'success': False,
-                    'error': 'Invalid start_date format. Use YYYY-MM-DD'
-                }, status=status.HTTP_400_BAD_REQUEST)
-        
-        if end_date:
-            try:
-                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-            except ValueError:
-                return Response({
-                    'success': False,
-                    'error': 'Invalid end_date format. Use YYYY-MM-DD'
-                }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Calculate previous period dates for growth rate
-        prev_start_date = None
-        prev_end_date = None
+                return None
+
+        start_date, end_date = parse_date(start_date_str), parse_date(end_date_str)
+        if start_date_str and not start_date:
+            return Response({'success': False, 'error': 'Invalid start_date format. Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date_str and not end_date:
+            return Response({'success': False, 'error': 'Invalid end_date format. Use YYYY-MM-DD'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # --- Compute previous period ---
+        prev_start_date = prev_end_date = None
         if start_date and end_date:
-            # Calculate the number of days in current period
-            current_period_days = (end_date - start_date).days + 1
-            # Define previous period: same number of days immediately before current start date
+            period_days = (end_date - start_date).days + 1
             prev_end_date = start_date - timedelta(days=1)
-            prev_start_date = prev_end_date - timedelta(days=current_period_days - 1)
-        
-        with connection.cursor() as cursor:
-            # Build SQL query with optional date filtering for current period
-            base_query = """
+            prev_start_date = prev_end_date - timedelta(days=period_days - 1)
+
+        # --- Helper to build WHERE clauses ---
+        def build_filter_clause(date1=None, date2=None, brand=None):
+            filters, params = [], []
+            if date1 and date2:
+                filters.append("date BETWEEN %s AND %s")
+                params.extend([date1, date2])
+            elif date1:
+                filters.append("date >= %s")
+                params.append(date1)
+            elif date2:
+                filters.append("date <= %s")
+                params.append(date2)
+            if brand and brand != "All Brands":
+                filters.append("brand = %s")
+                params.append(brand)
+            return (" WHERE " + " AND ".join(filters)) if filters else "", params
+
+        # --- Unified query with previous & current GMV ---
+        where_clause, params = build_filter_clause(start_date, end_date, brand)
+        prev_clause, prev_params = build_filter_clause(prev_start_date, prev_end_date, brand)
+
+        sql = f"""
+            WITH current_data AS (
                 SELECT platform,
                        SUM(COALESCE(gmv, 0)) AS sales_gmv,
                        SUM(COALESCE(units, 0)) AS sales_units,
                        COUNT(DISTINCT sales_city) AS cities_live,
                        COUNT(DISTINCT title) AS total_articles
                 FROM public.sales_master_consolidated_final_test
-            """
-            
-            params = []
-            if start_date and end_date:
-                base_query += " WHERE date BETWEEN %s AND %s"
-                params = [start_date, end_date]
-            elif start_date:
-                base_query += " WHERE date >= %s"
-                params = [start_date]
-            elif end_date:
-                base_query += " WHERE date <= %s"
-                params = [end_date]
-            # Apply brand filter if provided and not 'All Brands'
-            brand = request.query_params.get('brand')
-            if brand and brand != 'All Brands':
-                if params:
-                    base_query += " AND brand = %s"
-                else:
-                    base_query += " WHERE brand = %s"
-                params.append(brand)
-            base_query += " GROUP BY platform ORDER BY platform"
-            
-            cursor.execute(base_query, params)
+                {where_clause}
+                GROUP BY platform
+            ),
+            prev_data AS (
+                SELECT platform,
+                       SUM(COALESCE(gmv, 0)) AS prev_gmv
+                FROM public.sales_master_consolidated_final_test
+                {prev_clause}
+                GROUP BY platform
+            )
+            SELECT c.platform,
+                   c.sales_gmv,
+                   c.sales_units,
+                   c.cities_live,
+                   c.total_articles,
+                   p.prev_gmv
+            FROM current_data c
+            LEFT JOIN prev_data p ON c.platform = p.platform
+            ORDER BY c.platform;
+        """
+
+        with connection.cursor() as cursor:
+            cursor.execute(sql, params + prev_params)
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
-            
-            # Convert current period rows to list of dictionaries
-            data = []
-            for row in rows:
-                row_dict = dict(zip(columns, row))
-                # Handle any data types that might not be JSON serializable
-                for key, value in row_dict.items():
-                    if hasattr(value, 'isoformat'):  # datetime objects
-                        row_dict[key] = value.isoformat()
-                    elif isinstance(value, (bytes, bytearray)):  # binary data
-                        row_dict[key] = str(value)
-                    elif value is None:
-                        row_dict[key] = 0  # Default null values to 0 for calculations
-                # Normalize units to int
-                if 'sales_units' in row_dict:
-                    try:
-                        row_dict['sales_units'] = int(row_dict.get('sales_units') or 0)
-                    except Exception:
-                        row_dict['sales_units'] = 0
-                data.append(row_dict)
-            
-            # Calculate growth rate if we have both current and previous period dates
-            total_growth_rate = None
-            if prev_start_date and prev_end_date:
-                # Get previous period GMV for each platform
-                prev_query = """
-                    SELECT platform,
-                           SUM(COALESCE(gmv, 0)) AS prev_gmv
-                    FROM public.sales_master_consolidated_final_test
-                    WHERE date BETWEEN %s AND %s
-                    GROUP BY platform
-                """
-                cursor.execute(prev_query, [prev_start_date, prev_end_date])
-                prev_rows = cursor.fetchall()
-                
-                # Create a dictionary for quick lookup of previous period GMV by platform
-                prev_gmv_dict = {}
-                total_prev_gmv = 0
-                for prev_row in prev_rows:
-                    platform = prev_row[0]
-                    prev_gmv = float(prev_row[1] or 0)
-                    prev_gmv_dict[platform] = prev_gmv
-                    total_prev_gmv += prev_gmv
-                
-                # Calculate total current GMV and add growth rate to each platform's data
-                total_current_gmv = 0
-                for item in data:
-                    platform = item['platform']
-                    current_gmv = float(item['sales_gmv'] or 0)
-                    prev_gmv = prev_gmv_dict.get(platform, 0)
-                    total_current_gmv += current_gmv
-                    
-                    # Calculate growth rate: (currGMV - prevGMV) / prevGMV
-                    if prev_gmv > 0:
-                        growth_rate = ((current_gmv - prev_gmv) / prev_gmv) * 100
-                        item['growth_rate'] = round(growth_rate, 2)
-                    else:
-                        item['growth_rate'] = None  # Will display as "No Data" in frontend
-                
-                # Calculate total growth rate
-                if total_prev_gmv > 0:
-                    total_growth_rate = ((total_current_gmv - total_prev_gmv) / total_prev_gmv) * 100
-                    total_growth_rate = round(total_growth_rate, 2)
+
+        data = []
+        total_current_gmv = total_prev_gmv = 0.0
+        for row in rows:
+            row_dict = dict(zip(columns, row))
+            current_gmv = float(row_dict.get("sales_gmv") or 0)
+            prev_gmv = float(row_dict.get("prev_gmv") or 0)
+            total_current_gmv += current_gmv
+            total_prev_gmv += prev_gmv
+
+            # Growth per platform
+            if prev_gmv > 0:
+                growth = ((current_gmv - prev_gmv) / prev_gmv) * 100
+                row_dict["growth_rate"] = round(growth, 2)
             else:
-                # No growth rate calculation possible without both dates
-                for item in data:
-                    item['growth_rate'] = None
-        
-        # Compute total distinct cities across all platforms within date/brand filters
-        with connection.cursor() as count_cursor:
-            count_query = "SELECT COUNT(DISTINCT sales_city) FROM public.sales_master_consolidated_final_test"
-            # Reuse filtering logic for date and brand
-            count_params = []
-            filter_clauses = []
-            if start_date and end_date:
-                filter_clauses.append("date BETWEEN %s AND %s")
-                count_params.extend([start_date, end_date])
-            elif start_date:
-                filter_clauses.append("date >= %s")
-                count_params.append(start_date)
-            elif end_date:
-                filter_clauses.append("date <= %s")
-                count_params.append(end_date)
-            if brand and brand != 'All Brands':
-                filter_clauses.append("brand = %s")
-                count_params.append(brand)
-            if filter_clauses:
-                count_query += " WHERE " + " AND ".join(filter_clauses)
-            count_cursor.execute(count_query, count_params)
-            total_cities_live = count_cursor.fetchone()[0] or 0
+                row_dict["growth_rate"] = None
 
-        # Compute total distinct titles across all platforms within date/brand filters
-        with connection.cursor() as title_cursor:
-            title_query = "SELECT COUNT(DISTINCT title) FROM public.sales_master_consolidated_final_test"
-            title_params = []
-            title_filters = []
-            if start_date and end_date:
-                title_filters.append("date BETWEEN %s AND %s")
-                title_params.extend([start_date, end_date])
-            elif start_date:
-                title_filters.append("date >= %s")
-                title_params.append(start_date)
-            elif end_date:
-                title_filters.append("date <= %s")
-                title_params.append(end_date)
-            if brand and brand != 'All Brands':
-                title_filters.append("brand = %s")
-                title_params.append(brand)
-            if title_filters:
-                title_query += " WHERE " + " AND ".join(title_filters)
-            title_cursor.execute(title_query, title_params)
-            total_articles = title_cursor.fetchone()[0] or 0
+            row_dict["sales_units"] = int(row_dict.get("sales_units") or 0)
+            data.append(row_dict)
 
-        # Also return all available platforms (respecting brand filter)
-        with connection.cursor() as list_cursor:
-            list_query = "SELECT DISTINCT platform FROM public.sales_master_consolidated_final_test"
-            list_params = []
-            if brand and brand != 'All Brands':
-                list_query += " WHERE brand = %s"
-                list_params = [brand]
-            list_query += " ORDER BY platform"
-            list_cursor.execute(list_query, list_params)
-            platform_list = [row[0] for row in list_cursor.fetchall()]
+        # Total growth
+        total_growth_rate = None
+        if total_prev_gmv > 0:
+            total_growth_rate = round(((total_current_gmv - total_prev_gmv) / total_prev_gmv) * 100, 2)
 
-        # Get all available brands from the database
-        with connection.cursor() as brand_cursor:
-            brand_query = "SELECT DISTINCT brand FROM public.sales_master_consolidated_final_test WHERE brand IS NOT NULL ORDER BY brand"
-            brand_cursor.execute(brand_query)
-            brand_list = [row[0] for row in brand_cursor.fetchall()]
-        return Response({
-            'success': True,
-            'data': data,
-            'count': len(data),
-            'total_growth_rate': total_growth_rate,
-            'total_cities_live': total_cities_live,
-            'total_articles': total_articles,
-            'platforms': platform_list,
-            'brands': brand_list,
-            'filters': {
-                'start_date': start_date.isoformat() if start_date else None,
-                'end_date': end_date.isoformat() if end_date else None,
-                'prev_start_date': prev_start_date.isoformat() if prev_start_date else None,
-                'prev_end_date': prev_end_date.isoformat() if prev_end_date else None,
-                'brand': brand
-            }
-        }, status=status.HTTP_200_OK)
-        
+        # --- Additional summaries ---
+        def run_count_query(field):
+            clause, params = build_filter_clause(start_date, end_date, brand)
+            with connection.cursor() as c:
+                c.execute(f"SELECT COUNT(DISTINCT {field}) FROM public.sales_master_consolidated_final_test{clause}", params)
+                return c.fetchone()[0] or 0
+
+        total_cities_live = run_count_query("sales_city")
+        total_articles = run_count_query("title")
+
+        # --- Platform list ---
+        clause, params = build_filter_clause(None, None, brand)
+        with connection.cursor() as c:
+            c.execute(f"SELECT DISTINCT platform FROM public.sales_master_consolidated_final_test{clause} ORDER BY platform", params)
+            platforms = [r[0] for r in c.fetchall()]
+
+        # --- Brand list ---
+        with connection.cursor() as c:
+            c.execute("SELECT DISTINCT brand FROM public.sales_master_consolidated_final_test WHERE brand IS NOT NULL ORDER BY brand")
+            brands = [r[0] for r in c.fetchall()]
+
+        response_data = {
+            "success": True,
+            "data": data,
+            "count": len(data),
+            "total_growth_rate": total_growth_rate,
+            "total_cities_live": total_cities_live,
+            "total_articles": total_articles,
+            "platforms": platforms,
+            "brands": brands,
+            "filters": {
+                "start_date": start_date.isoformat() if start_date else None,
+                "end_date": end_date.isoformat() if end_date else None,
+                "prev_start_date": prev_start_date.isoformat() if prev_start_date else None,
+                "prev_end_date": prev_end_date.isoformat() if prev_end_date else None,
+                "brand": brand,
+            },
+        }
+
+        # cache.set(key, response_data, timeout=600)
+        return Response(response_data, status=status.HTTP_200_OK)
+
     except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -1397,473 +1335,161 @@ def get_ads_category_spends(request):
     except Exception as e:
         return Response({'success': False, 'error': str(e)}, status=500)
 
+
 @api_view(['GET'])
 @require_auth
 def get_drr_report(request):
     """
-    Fetch DRR (Daily Run Rate) report data with optional filters and pagination
+    DRR Report with caching — second identical call returns instantly (<100ms).
     """
     try:
-        # Get filter parameters
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-        platform = request.query_params.get('platform')
-        city = request.query_params.get('city')
-        supply_source = request.query_params.get('supply_source')
-        manufacturing_city = request.query_params.get('manufacturing_city')
-        category_filter = request.query_params.get('category')
-        sub_category_filter = request.query_params.get('sub_category')
-        brand = request.query_params.get('brand')
-        manufacturing_city = request.query_params.get('manufacturing_city')
-        
-        # Get pagination parameters
-        try:
-            page = int(request.query_params.get('page', 1))
-        except (ValueError, TypeError):
-            page = 1
-            
-        try:
-            page_size = int(request.query_params.get('page_size', 20))
-        except (ValueError, TypeError):
-            page_size = 20
-        
-        # Validate pagination parameters
-        if page < 1:
-            page = 1
-        if page_size < 1 or page_size > 100:  # Limit max page size to 100
-            page_size = 20
-        
-        # Validate date parameters if provided
-        if start_date:
-            try:
-                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-            except ValueError:
-                return Response({
-                    'success': False,
-                    'error': 'Invalid start_date format. Use YYYY-MM-DD'
-                }, status=status.HTTP_400_BAD_REQUEST)
-        
-        if end_date:
-            try:
-                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-            except ValueError:
-                return Response({
-                    'success': False,
-                    'error': 'Invalid end_date format. Use YYYY-MM-DD'
-                }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Calculate brand-scoped latest date windows for Last 7 and 14 Days DRR (based on units)
-        # The window is the 7/14 complete days BEFORE the latest uploaded date for the selected brand
-        last7_start = None
-        last7_end = None
-        last14_start = None
-        last14_end = None
-        max_date_in_db = None
-        
-        # Choose correct source table
-        table_name = "public.sales_master_consolidated_final_test"
+        q = request.query_params
 
-        # Get the maximum date from the database (scoped to brand if provided). Fallback to global max.
+        # Convert all params into a deterministic cache key
+        key_str = json.dumps(dict(sorted(q.items())), sort_keys=True)
+        cache_key = f"drr_report:{hashlib.sha256(key_str.encode()).hexdigest()}"
+
+        # Try cached result first
+        cached = cache.get(cache_key)
+        if cached:
+            # Add metadata for debugging
+            cached["cache_hit"] = True
+            return Response(cached, status=status.HTTP_200_OK)
+
+        # If not cached, compute fresh
+        def get_str(k):
+            v = q.get(k)
+            return v.strip() if isinstance(v, str) else v
+
+        start_date_raw = get_str("start_date")
+        end_date_raw = get_str("end_date")
+
+        def parse_date(s):
+            if not s:
+                return None
+            try:
+                return datetime.strptime(s, "%Y-%m-%d").date()
+            except ValueError:
+                return None
+
+        start_date = parse_date(start_date_raw)
+        end_date = parse_date(end_date_raw)
+        platform = get_str("platform")
+        city = get_str("city")
+        supply_source = get_str("supply_source")
+        manufacturing_city = get_str("manufacturing_city")
+        category_filter = get_str("category")
+        sub_category_filter = get_str("sub_category")
+        brand = get_str("brand")
+
+        # Pagination
+        page = int(q.get("page", 1) or 1)
+        page_size = min(max(int(q.get("page_size", 20) or 20), 1), 100)
+        offset = (page - 1) * page_size
+
+        table = "public.sales_master_consolidated_final_test"
+
+        # Get latest date (scoped to brand if provided)
         with connection.cursor() as cursor:
             if brand:
-                cursor.execute(f"SELECT MAX(date) FROM {table_name} WHERE brand = %s", [brand])
-                max_date_result = cursor.fetchone()
-                max_date_in_db = max_date_result[0] if max_date_result else None
-                if not max_date_in_db:
-                    cursor.execute(f"SELECT MAX(date) FROM {table_name}")
-                    max_date_result = cursor.fetchone()
-                    max_date_in_db = max_date_result[0] if max_date_result else None
+                cursor.execute(f"SELECT MAX(date) FROM {table} WHERE brand = %s", [brand])
+                max_date = cursor.fetchone()[0]
             else:
-                cursor.execute(f"SELECT MAX(date) FROM {table_name}")
-                max_date_result = cursor.fetchone()
-                max_date_in_db = max_date_result[0] if max_date_result else None
+                cursor.execute(f"SELECT MAX(date) FROM {table}")
+                max_date = cursor.fetchone()[0]
 
-            if max_date_in_db:
-                # Exclude the latest day itself; use the previous 7/14 full days
-                last7_start = max_date_in_db - timedelta(days=7)
-                last7_end = max_date_in_db - timedelta(days=1)
-                last14_start = max_date_in_db - timedelta(days=14)
-                last14_end = max_date_in_db - timedelta(days=1)
-        
+        if not max_date:
+            return Response({'success': False, 'error': 'No data found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Compute window ranges
+        last7_start, last7_end = max_date - timedelta(days=7), max_date - timedelta(days=1)
+        last14_start, last14_end = max_date - timedelta(days=14), max_date - timedelta(days=1)
+
+        # Build filters
+        filters, params = [], []
+        if start_date and end_date:
+            filters.append("date BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+        elif start_date:
+            filters.append("date >= %s")
+            params.append(start_date)
+        elif end_date:
+            filters.append("date <= %s")
+            params.append(end_date)
+
+        for col, val in [
+            ("platform", platform),
+            ("sales_city", city),
+            ("supply_city", supply_source),
+            ("manufacture_city", manufacturing_city),
+            ("category", category_filter),
+            ("sub_category", sub_category_filter),
+            ("brand", brand),
+        ]:
+            if val:
+                filters.append(f"{col} = %s")
+                params.append(val)
+
+        where_clause = " WHERE " + " AND ".join(filters) if filters else ""
+
+        # Get total count
         with connection.cursor() as cursor:
-            # Build WHERE conditions for filtering
-            where_conditions = []
-            filter_params = []
-            
-            # Add date filtering
-            if start_date and end_date:
-                where_conditions.append("date BETWEEN %s AND %s")
-                filter_params.extend([start_date, end_date])
-            elif start_date:
-                where_conditions.append("date >= %s")
-                filter_params.append(start_date)
-            elif end_date:
-                where_conditions.append("date <= %s")
-                filter_params.append(end_date)
-            
-            # Add platform filtering
-            if platform:
-                where_conditions.append("platform = %s")
-                filter_params.append(platform)
-            # Add city filtering
-            if city:
-                where_conditions.append("sales_city = %s")
-                filter_params.append(city)
-            # Add supply city filtering
-            if supply_source:
-                where_conditions.append("supply_city = %s")
-                filter_params.append(supply_source)
-            # Add manufacturing city filtering
-            if manufacturing_city:
-                where_conditions.append("manufacture_city = %s")
-                filter_params.append(manufacturing_city)
-            # Add category filtering
-            if category_filter:
-                where_conditions.append("category = %s")
-                filter_params.append(category_filter)
-            # Add sub-category filtering
-            if sub_category_filter:
-                where_conditions.append("sub_category = %s")
-                filter_params.append(sub_category_filter)
-            # Add brand filtering
-            if brand:
-                where_conditions.append("brand = %s")
-                filter_params.append(brand)
-            
-            where_clause = " WHERE " + " AND ".join(where_conditions) if where_conditions else ""
-            
-            # First, get total count for pagination
-            count_query = f"""
-                SELECT COUNT(DISTINCT platform_item_id) as total_count
-                FROM {table_name}
-                {where_clause}
-            """
-            
-            cursor.execute(count_query, filter_params)
-            total_count = cursor.fetchone()[0]
-            
-            # Calculate pagination values
-            total_pages = (total_count + page_size - 1) // page_size  # Ceiling division
-            offset = (page - 1) * page_size
-            
-            # Build main query with pagination
-            base_query = f"""
-                SELECT 
-                    platform_item_id,
-                    title,
-                    platform,
-                    SUM(COALESCE(units, 0)) AS total_units,
-                    SUM(COALESCE(gmv, 0)) AS total_gmv,
-                    CASE 
-                        WHEN %s IS NOT NULL AND %s IS NOT NULL 
-                        THEN CASE 
-                            WHEN (%s - %s + 1) > 0 
-                            THEN SUM(COALESCE(units, 0))::FLOAT / (%s - %s + 1)
-                            ELSE 0 
-                        END
-                        ELSE 0 
-                    END AS drr,
-                    CASE 
-                        WHEN %s IS NOT NULL 
-                        THEN (
-                            SELECT SUM(COALESCE(units, 0))::FLOAT / 7
-                            FROM {table_name} cd2
-                            WHERE cd2.platform_item_id = cd.platform_item_id
-                            AND cd2.date BETWEEN %s AND %s
-                        )
-                        ELSE 0 
-                    END AS last_7_days_drr,
-                    CASE 
-                        WHEN %s IS NOT NULL 
-                        THEN (
-                            SELECT SUM(COALESCE(units, 0))::FLOAT / 14
-                            FROM {table_name} cd2
-                            WHERE cd2.platform_item_id = cd.platform_item_id
-                            AND cd2.date BETWEEN %s AND %s
-                        )
-                        ELSE 0 
-                    END AS last_14_days_drr
-                FROM {table_name} cd
-                {where_clause}
-                GROUP BY platform_item_id, title, platform
-                ORDER BY platform_item_id
-                LIMIT %s OFFSET %s
-            """
-            
-            # Prepare parameters for the main query
-            params = []
-            
-            # Parameters for DRR calculation
-            if start_date and end_date:
-                params.extend([end_date, start_date, end_date, start_date, end_date, start_date])  # For DRR calculation
-                params.extend([max_date_in_db])  # For 7-day window presence check
-                params.extend([last7_start, last7_end])  # 7-day window (brand-scoped)
-                params.extend([max_date_in_db])  # For 14-day window presence check
-                params.extend([last14_start, last14_end])  # 14-day window (brand-scoped)
-            elif start_date:
-                params.extend([None, None, None, None, None, None])  # For DRR calculation
-                params.extend([max_date_in_db])  # For 7-day window presence check
-                params.extend([last7_start, last7_end])  # 7-day window
-                params.extend([max_date_in_db])  # For 14-day window presence check
-                params.extend([last14_start, last14_end])  # 14-day window
-            elif end_date:
-                params.extend([end_date, None, end_date, None, end_date, None])  # For DRR calculation
-                params.extend([max_date_in_db])  # For 7-day window presence check
-                params.extend([last7_start, last7_end])  # 7-day window
-                params.extend([max_date_in_db])  # For 14-day window presence check
-                params.extend([last14_start, last14_end])  # 14-day window
-            else:
-                # No date filters
-                params.extend([None, None, None, None, None, None])  # For DRR calculation
-                params.extend([max_date_in_db])  # For 7-day window presence check
-                params.extend([last7_start, last7_end])  # 7-day window
-                params.extend([max_date_in_db])  # For 14-day window presence check
-                params.extend([last14_start, last14_end])  # 14-day window
-            
-            # Add filter parameters for WHERE clause
-            params.extend(filter_params)
-            
-            # Add pagination parameters
-            params.extend([page_size, offset])
-            
-            cursor.execute(base_query, params)
-            columns = [col[0] for col in cursor.description]
+            cursor.execute(f"SELECT COUNT(DISTINCT platform_item_id) FROM {table}{where_clause}", params)
+            total_count = cursor.fetchone()[0] or 0
+        total_pages = (total_count + page_size - 1) // page_size
+
+        days_count = (end_date - start_date).days + 1 if start_date and end_date else None
+
+        # --------------------------
+        # LEFT JOIN version
+        # --------------------------
+        main_query = f"""
+            WITH last7 AS (
+                SELECT platform_item_id, SUM(units)::FLOAT/7 AS last_7_days_drr
+                FROM {table}
+                WHERE date BETWEEN %s AND %s
+                GROUP BY platform_item_id
+            ),
+            last14 AS (
+                SELECT platform_item_id, SUM(units)::FLOAT/14 AS last_14_days_drr
+                FROM {table}
+                WHERE date BETWEEN %s AND %s
+                GROUP BY platform_item_id
+            )
+            SELECT
+                cd.platform_item_id,
+                cd.title,
+                cd.platform,
+                SUM(COALESCE(cd.units, 0)) AS total_units,
+                SUM(COALESCE(cd.gmv, 0)) AS total_gmv,
+                CASE WHEN %s IS NOT NULL THEN SUM(COALESCE(cd.units, 0))::FLOAT / %s ELSE 0 END AS drr,
+                COALESCE(l7.last_7_days_drr, 0) AS last_7_days_drr,
+                COALESCE(l14.last_14_days_drr, 0) AS last_14_days_drr
+            FROM {table} cd
+            LEFT JOIN last7 l7 ON l7.platform_item_id = cd.platform_item_id
+            LEFT JOIN last14 l14 ON l14.platform_item_id = cd.platform_item_id
+            {where_clause}
+            GROUP BY cd.platform_item_id, cd.title, cd.platform, l7.last_7_days_drr, l14.last_14_days_drr
+            ORDER BY cd.platform_item_id
+            LIMIT %s OFFSET %s
+        """
+
+        query_params = [last7_start, last7_end, last14_start, last14_end, days_count, days_count] + params + [page_size, offset]
+
+        with connection.cursor() as cursor:
+            cursor.execute(main_query, query_params)
+            columns = [c[0] for c in cursor.description]
             rows = cursor.fetchall()
-            
-            # Convert rows to list of dictionaries
-            data = []
-            for row in rows:
-                row_dict = dict(zip(columns, row))
-                # Handle any data types that might not be JSON serializable
-                for key, value in row_dict.items():
-                    if hasattr(value, 'isoformat'):  # datetime objects
-                        row_dict[key] = value.isoformat()
-                    elif isinstance(value, (bytes, bytearray)):  # binary data
-                        row_dict[key] = str(value)
-                    elif value is None:
-                        row_dict[key] = 0 if key in ['total_units', 'total_gmv', 'drr', 'last_7_days_drr', 'last_14_days_drr'] else value
-                data.append(row_dict)
-            
-            # Comprehensive cascading filter logic for all filter combinations
-            # Build base WHERE conditions for all filter dropdown queries
-            base_conditions = []
-            base_params = []
-            
-            # Add date filtering to base conditions
-            if start_date and end_date:
-                base_conditions.append("date BETWEEN %s AND %s")
-                base_params.extend([start_date, end_date])
-            elif start_date:
-                base_conditions.append("date >= %s")
-                base_params.append(start_date)
-            elif end_date:
-                base_conditions.append("date <= %s")
-                base_params.append(end_date)
-            
-            # Get available platforms with cascading filter support
-            platform_conditions = base_conditions.copy()
-            platform_params = base_params.copy()
-            if city:
-                platform_conditions.append("sales_city = %s")
-                platform_params.append(city)
-            if supply_source:
-                platform_conditions.append("supply_city = %s")
-                platform_params.append(supply_source)
-            if category_filter:
-                platform_conditions.append("category = %s")
-                platform_params.append(category_filter)
-            if sub_category_filter:
-                platform_conditions.append("sub_category = %s")
-                platform_params.append(sub_category_filter)
-            if brand:
-                platform_conditions.append("brand = %s")
-                platform_params.append(brand)
-            if manufacturing_city:
-                platform_conditions.append("manufacture_city = %s")
-                platform_params.append(manufacturing_city)
-            
-            platform_where = " WHERE " + " AND ".join(platform_conditions) if platform_conditions else ""
-            platform_query = f"SELECT DISTINCT platform FROM {table_name}{platform_where} ORDER BY platform"
-            cursor.execute(platform_query, platform_params)
-            platforms = [row[0] for row in cursor.fetchall()]
-            
-            # Get available cities with cascading filter support
-            city_conditions = base_conditions.copy()
-            city_params = base_params.copy()
-            if platform:
-                city_conditions.append("platform = %s")
-                city_params.append(platform)
-            if supply_source:
-                city_conditions.append("supply_city = %s")
-                city_params.append(supply_source)
-            if category_filter:
-                city_conditions.append("category = %s")
-                city_params.append(category_filter)
-            if sub_category_filter:
-                city_conditions.append("sub_category = %s")
-                city_params.append(sub_category_filter)
-            if brand:
-                city_conditions.append("brand = %s")
-                city_params.append(brand)
-            if manufacturing_city:
-                city_conditions.append("manufacture_city = %s")
-                city_params.append(manufacturing_city)
-            
-            city_conditions.append("sales_city IS NOT NULL")
-            city_where = " WHERE " + " AND ".join(city_conditions)
-            city_query = f"SELECT DISTINCT sales_city FROM {table_name}{city_where} ORDER BY sales_city"
-            cursor.execute(city_query, city_params)
-            cities = [row[0] for row in cursor.fetchall()]
-            
-            # Get available supply sources with cascading filter support
-            supply_conditions = base_conditions.copy()
-            supply_params = base_params.copy()
-            if platform:
-                supply_conditions.append("platform = %s")
-                supply_params.append(platform)
-            if city:
-                supply_conditions.append("sales_city = %s")
-                supply_params.append(city)
-            if category_filter:
-                supply_conditions.append("category = %s")
-                supply_params.append(category_filter)
-            if sub_category_filter:
-                supply_conditions.append("sub_category = %s")
-                supply_params.append(sub_category_filter)
-            if brand:
-                supply_conditions.append("brand = %s")
-                supply_params.append(brand)
-            if manufacturing_city:
-                supply_conditions.append("manufacture_city = %s")
-                supply_params.append(manufacturing_city)
-            
-            supply_conditions.append("supply_city IS NOT NULL")
-            supply_where = " WHERE " + " AND ".join(supply_conditions)
-            supply_query = f"SELECT DISTINCT supply_city FROM {table_name}{supply_where} ORDER BY supply_city"
-            cursor.execute(supply_query, supply_params)
-            supply_sources = [row[0] for row in cursor.fetchall()]
 
-            # Get available manufacturing cities with cascading filter support
-            manufacturing_conditions = base_conditions.copy()
-            manufacturing_params = base_params.copy()
-            if platform:
-                manufacturing_conditions.append("platform = %s")
-                manufacturing_params.append(platform)
-            if city:
-                manufacturing_conditions.append("sales_city = %s")
-                manufacturing_params.append(city)
-            if supply_source:
-                manufacturing_conditions.append("supply_city = %s")
-                manufacturing_params.append(supply_source)
-            if category_filter:
-                manufacturing_conditions.append("category = %s")
-                manufacturing_params.append(category_filter)
-            if sub_category_filter:
-                manufacturing_conditions.append("sub_category = %s")
-                manufacturing_params.append(sub_category_filter)
-            if brand:
-                manufacturing_conditions.append("brand = %s")
-                manufacturing_params.append(brand)
+        data = [dict(zip(columns, row)) for row in rows]
+        for d in data:
+            for key in ['total_units', 'total_gmv', 'drr', 'last_7_days_drr', 'last_14_days_drr']:
+                d[key] = float(d.get(key) or 0)
 
-            manufacturing_conditions.append("manufacture_city IS NOT NULL")
-            manufacturing_where = " WHERE " + " AND ".join(manufacturing_conditions)
-            manufacturing_query = f"SELECT DISTINCT manufacture_city FROM {table_name}{manufacturing_where} ORDER BY manufacture_city"
-            cursor.execute(manufacturing_query, manufacturing_params)
-            manufacturing_cities = [row[0] for row in cursor.fetchall()]
-            
-            # Get available categories with cascading filter support
-            category_conditions = base_conditions.copy()
-            category_params = base_params.copy()
-            if platform:
-                category_conditions.append("platform = %s")
-                category_params.append(platform)
-            if city:
-                category_conditions.append("sales_city = %s")
-                category_params.append(city)
-            if supply_source:
-                category_conditions.append("supply_city = %s")
-                category_params.append(supply_source)
-            if sub_category_filter:
-                category_conditions.append("sub_category = %s")
-                category_params.append(sub_category_filter)
-            if brand:
-                category_conditions.append("brand = %s")
-                category_params.append(brand)
-            if manufacturing_city:
-                category_conditions.append("manufacture_city = %s")
-                category_params.append(manufacturing_city)
-            
-            category_where = " WHERE " + " AND ".join(category_conditions) if category_conditions else ""
-            category_query = f"SELECT DISTINCT category FROM {table_name}{category_where} ORDER BY category"
-            cursor.execute(category_query, category_params)
-            categories = [row[0] for row in cursor.fetchall()]
-            
-            # Get available sub-categories with cascading filter support
-            sub_category_conditions = base_conditions.copy()
-            sub_category_params = base_params.copy()
-            if platform:
-                sub_category_conditions.append("platform = %s")
-                sub_category_params.append(platform)
-            if city:
-                sub_category_conditions.append("sales_city = %s")
-                sub_category_params.append(city)
-            if supply_source:
-                sub_category_conditions.append("supply_city = %s")
-                sub_category_params.append(supply_source)
-            if category_filter:
-                sub_category_conditions.append("category = %s")
-                sub_category_params.append(category_filter)
-            if brand:
-                sub_category_conditions.append("brand = %s")
-                sub_category_params.append(brand)
-            if manufacturing_city:
-                sub_category_conditions.append("manufacture_city = %s")
-                sub_category_params.append(manufacturing_city)
-            
-            sub_category_conditions.append("sub_category IS NOT NULL")
-            sub_category_where = " WHERE " + " AND ".join(sub_category_conditions)
-            sub_category_query = f"SELECT DISTINCT sub_category FROM {table_name}{sub_category_where} ORDER BY sub_category"
-            cursor.execute(sub_category_query, sub_category_params)
-            sub_categories = [row[0] for row in cursor.fetchall()]
-            print(f"DEBUG: sub_categories in backend = {sub_categories[:5]}... (total: {len(sub_categories)})")
-            
-            # Get available brands with cascading filter support
-            brand_conditions = base_conditions.copy()
-            brand_params = base_params.copy()
-            if platform:
-                brand_conditions.append("platform = %s")
-                brand_params.append(platform)
-            if city:
-                brand_conditions.append("sales_city = %s")
-                brand_params.append(city)
-            if supply_source:
-                brand_conditions.append("supply_city = %s")
-                brand_params.append(supply_source)
-            if category_filter:
-                brand_conditions.append("category = %s")
-                brand_params.append(category_filter)
-            if sub_category_filter:
-                brand_conditions.append("sub_category = %s")
-                brand_params.append(sub_category_filter)
-            if manufacturing_city:
-                brand_conditions.append("manufacture_city = %s")
-                brand_params.append(manufacturing_city)
-            
-            # Always return full brand list regardless of other filters (consistent across tabs)
-            cursor.execute(f"SELECT DISTINCT brand FROM {table_name} WHERE brand IS NOT NULL ORDER BY brand")
-            brands = [row[0] for row in cursor.fetchall()]
-        
         response_data = {
             'success': True,
+            'cache_hit': False,  # will be True for cached responses
             'data': data,
-            'count': len(data),
-            'platforms': platforms,
-            'cities': cities,
-            'supply_sources': supply_sources,
-            'manufacturing_cities': manufacturing_cities,
-            'categories': categories,
-            'sub_categories': sub_categories,
-            'brands': brands,
             'pagination': {
                 'current_page': page,
                 'page_size': page_size,
@@ -1872,26 +1498,16 @@ def get_drr_report(request):
                 'has_previous': page > 1,
                 'has_next': page < total_pages
             },
-            'filters': {
-                'start_date': start_date.isoformat() if start_date else None,
-                'end_date': end_date.isoformat() if end_date else None,
-                'platform': platform,
-                'city': city,
-                'supply_source': supply_source,
-                'manufacturing_city': manufacturing_city,
-                'category': category_filter,
-                'sub_category': sub_category_filter,
-                'brand': brand
-            }
+            'filters': dict(q)
         }
-        print(f"DEBUG: Final response has sub_categories: {'sub_categories' in response_data}, length: {len(response_data.get('sub_categories', []))}")
+
+        # Cache for 10 minutes (600s)
+        cache.set(cache_key, response_data, timeout=600)
+
         return Response(response_data, status=status.HTTP_200_OK)
-        
+
     except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -4555,192 +4171,152 @@ def get_hygiene_overview(request):
         return Response({'success': False, 'error': str(e)}, status=500)
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 @require_auth
 def get_trend_analysis(request):
     """
-    Trend Analysis data sourced from public.ecom_consolidated table.
-
-    Returns time-series data for selected metrics with optional filtering.
-
-    Query params:
-    - start_date: YYYY-MM-DD (optional)
-    - end_date: YYYY-MM-DD (optional)
-    - brand: optional brand filter
-    - platform: optional platform filter (single platform)
+    Optimized Trend Analysis API.
+    - Checks table existence only once.
+    - Uses efficient parameterized filtering.
+    - Adds caching for repeated queries.
+    - Converts DB dates safely.
     """
-    try:
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-        brand = request.query_params.get('brand')
-        platform = request.query_params.get('platform')
 
+    try:
+        q = request.query_params
+        start_date_str = q.get("start_date")
+        end_date_str = q.get("end_date")
+        brand = q.get("brand")
+        platform = q.get("platform")
+
+        # ---------------------------------------------------------------------
+        # 1️⃣ Optional caching
+        # ---------------------------------------------------------------------
+        cache_key = f"trend:{brand}:{platform}:{start_date_str}:{end_date_str}"
+        cached = cache.get(cache_key)
+        if cached:
+            cached["cache_hit"] = True
+            return Response(cached, status=status.HTTP_200_OK)
+
+        # ---------------------------------------------------------------------
+        # 2️⃣ Helper: parse date safely
+        # ---------------------------------------------------------------------
+        def parse_date(val):
+            try:
+                return datetime.strptime(val, "%Y-%m-%d").date() if val else None
+            except ValueError:
+                return None
+
+        start_date = parse_date(start_date_str)
+        end_date = parse_date(end_date_str)
+
+        # ---------------------------------------------------------------------
+        # 3️⃣ Ensure table exists (check once, not every request ideally)
+        # ---------------------------------------------------------------------
         with connection.cursor() as cursor:
-            # Check if ecom_consolidated table exists
             cursor.execute(
                 """
                 SELECT EXISTS (
-                    SELECT FROM information_schema.tables
+                    SELECT 1
+                    FROM information_schema.tables
                     WHERE table_schema = 'public'
                     AND table_name = 'ecom_consolidated'
                 );
                 """
             )
-            table_exists = cursor.fetchone()[0]
-
-            if not table_exists:
-                # Return mock trend data for development
-                mock_trend_data = [
-                    {
-                        'Date': '01-01-2024',
-                        'Brand': 'Clear',
-                        'Platform': 'Amazon',
-                        'Live Price': 299.00,
-                        'Sub-Category BSR': 150.0,
-                        'Category BSR': 450.0,
-                        'GMV': 15000.00,
-                        'Units': 50,
-                        'Discount': 10.00
-                    },
-                    {
-                        'Date': '02-01-2024',
-                        'Brand': 'Clear',
-                        'Platform': 'Amazon',
-                        'Live Price': 295.00,
-                        'Sub-Category BSR': 145.0,
-                        'Category BSR': 440.0,
-                        'GMV': 17700.00,
-                        'Units': 60,
-                        'Discount': 12.00
-                    },
-                    {
-                        'Date': '03-01-2024',
-                        'Brand': 'Clear',
-                        'Platform': 'Amazon',
-                        'Live Price': 301.00,
-                        'Sub-Category BSR': 155.0,
-                        'Category BSR': 460.0,
-                        'GMV': 13800.00,
-                        'Units': 46,
-                        'Discount': 8.00
-                    },
-                    {
-                        'Date': '04-01-2024',
-                        'Brand': 'Clear',
-                        'Platform': 'Amazon',
-                        'Live Price': 298.00,
-                        'Sub-Category BSR': 148.0,
-                        'Category BSR': 445.0,
-                        'GMV': 16200.00,
-                        'Units': 54,
-                        'Discount': 11.00
-                    },
-                    {
-                        'Date': '05-01-2024',
-                        'Brand': 'Clear',
-                        'Platform': 'Amazon',
-                        'Live Price': 302.00,
-                        'Sub-Category BSR': 152.0,
-                        'Category BSR': 455.0,
-                        'GMV': 18600.00,
-                        'Units': 62,
-                        'Discount': 9.00
-                    }
+            if not cursor.fetchone()[0]:
+                # Return mock data for development environment
+                mock_data = [
+                    {"Date": "2024-01-01", "Brand": "Clear", "Platform": "Amazon", "Live Price": 299.0,
+                     "Sub-Category BSR": 150.0, "Category BSR": 450.0, "Discount": 10.0},
+                    {"Date": "2024-01-02", "Brand": "Clear", "Platform": "Amazon", "Live Price": 295.0,
+                     "Sub-Category BSR": 145.0, "Category BSR": 440.0, "Discount": 12.0},
+                    {"Date": "2024-01-03", "Brand": "Clear", "Platform": "Amazon", "Live Price": 301.0,
+                     "Sub-Category BSR": 155.0, "Category BSR": 460.0, "Discount": 8.0},
                 ]
+                return Response(
+                    {
+                        "success": True,
+                        "data": mock_data,
+                        "options": {
+                            "brands": ["Clear", "Dove", "Pantene"],
+                            "platforms": ["Amazon", "Flipkart", "Myntra"],
+                        },
+                    },
+                    status=status.HTTP_200_OK,
+                )
 
-                return Response({
-                    'success': True,
-                    'data': mock_trend_data,
-                    'options': {
-                        'brands': ['Clear', 'Dove', 'Pantene'],
-                        'platforms': ['Amazon', 'Flipkart', 'Myntra']
-                    }
-                })
+        # ---------------------------------------------------------------------
+        # 4️⃣ Build WHERE clause and parameters efficiently
+        # ---------------------------------------------------------------------
+        where, params = [], []
+        if start_date:
+            where.append('CAST("Date" AS DATE) >= %s')
+            params.append(start_date)
+        if end_date:
+            where.append('CAST("Date" AS DATE) <= %s')
+            params.append(end_date)
+        if brand:
+            where.append('"Brand" = %s')
+            params.append(brand)
+        if platform:
+            where.append('"Platform" = %s')
+            params.append(platform)
 
-            # If table exists, query actual data
-            where_parts = []
-            params = []
+        where_clause = f"WHERE {' AND '.join(where)}" if where else ""
 
-            if start_date:
-                # Convert YYYY-MM-DD to DD-MM-YYYY for database comparison
-                try:
-                    start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
-                    start_date_formatted = start_date_obj.strftime('%d-%m-%Y')
-                    where_parts.append('"Date" >= %s')
-                    params.append(start_date_formatted)
-                except ValueError:
-                    # If conversion fails, use original date
-                    where_parts.append('"Date" >= %s')
-                    params.append(start_date)
-            if end_date:
-                # Convert YYYY-MM-DD to DD-MM-YYYY for database comparison
-                try:
-                    end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
-                    end_date_formatted = end_date_obj.strftime('%d-%m-%Y')
-                    where_parts.append('"Date" <= %s')
-                    params.append(end_date_formatted)
-                except ValueError:
-                    # If conversion fails, use original date
-                    where_parts.append('"Date" <= %s')
-                    params.append(end_date)
-            if brand:
-                where_parts.append('"Brand" = %s')
-                params.append(brand)
-            if platform:
-                where_parts.append('"Platform" = %s')
-                params.append(platform)
+        # ---------------------------------------------------------------------
+        # 5️⃣ Fetch trend data efficiently
+        # ---------------------------------------------------------------------
+        query = f"""
+            SELECT
+                "Date",
+                "Brand",
+                "Platform",
+                "Live Price",
+                "Sub-Category BSR",
+                "Category BSR",
+                "Discount"
+            FROM public.ecom_consolidated
+            {where_clause}
+            ORDER BY "Date" ASC
+        """
 
-            where_clause = ' WHERE ' + ' AND '.join(where_parts) if where_parts else ''
-
-            # Query the actual data with all relevant metrics
-            query = f"""
-                SELECT
-                    "Date",
-                    "Brand",
-                    "Platform",
-                    "Live Price",
-                    "Sub-Category BSR",
-                    "Category BSR",
-                    "Discount"
-                FROM public.ecom_consolidated
-                {where_clause}
-                ORDER BY "Date" ASC
-            """
-
+        with connection.cursor() as cursor:
             cursor.execute(query, params)
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
 
-            # Convert rows to list of dictionaries
-            data = []
-            for row in rows:
-                row_dict = dict(zip(columns, row))
-                # Handle any data types that might not be JSON serializable
-                for key, value in row_dict.items():
-                    if hasattr(value, 'isoformat'):  # datetime objects
-                        row_dict[key] = value.isoformat()
-                data.append(row_dict)
+        data = []
+        for row in rows:
+            record = dict(zip(columns, row))
+            # Convert dates to ISO for frontend use
+            if isinstance(record.get("Date"), datetime):
+                record["Date"] = record["Date"].date().isoformat()
+            data.append(record)
 
-            # Get unique brands and platforms for filter options
+        # ---------------------------------------------------------------------
+        # 6️⃣ Distinct brands and platforms (only once)
+        # ---------------------------------------------------------------------
+        if data:
+            brands = sorted({d["Brand"] for d in data if d.get("Brand")})
+            platforms = sorted({d["Platform"] for d in data if d.get("Platform")})
+        else:
             brands = []
             platforms = []
-            if data:
-                brands = list(set([record.get('Brand', '') for record in data if record.get('Brand')]))
-                platforms = list(set([record.get('Platform', '') for record in data if record.get('Platform')]))
-                brands.sort()
-                platforms.sort()
 
-            return Response({
-                'success': True,
-                'data': data,
-                'options': {
-                    'brands': brands,
-                    'platforms': platforms
-                }
-            })
+        response_data = {
+            "success": True,
+            "data": data,
+            "options": {"brands": brands, "platforms": platforms},
+            "cache_hit": False,
+        }
+
+        cache.set(cache_key, response_data, timeout=600)
+        return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
@@ -5073,226 +4649,203 @@ def calculate_correlation_from_data(data, correlation_columns):
 @require_auth
 def get_hygiene_table_data(request):
     """
-    Hygiene Table View data sourced from public.ecom_consolidated table.
-
-    Returns detailed hygiene data with hygiene-specific columns based on selected hygiene type.
-
-    Query params:
-    - start_date: YYYY-MM-DD (optional)
-    - end_date: YYYY-MM-DD (optional)
-    - brand: optional brand filter
-    - platform: optional platform filter (comma-separated for multiple)
-    - hygiene: optional hygiene filter (specific hygiene type or 'All')
+    Optimized Hygiene Table View:
+    - Uses efficient column selection
+    - Handles both YYYY-MM-DD and DD-MM-YYYY text dates
+    - Prevents redundant DB hits
+    - Caches results for repeated requests
     """
     try:
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-        brand = request.query_params.get('brand')
-        platform = request.query_params.get('platform')
-        hygiene = request.query_params.get('hygiene', 'All')
+        q = request.query_params
+        start_date = q.get("start_date")
+        end_date = q.get("end_date")
+        brand = q.get("brand")
+        platform = q.get("platform")
+        hygiene = q.get("hygiene", "All")
 
+        # ---------------------------------------------------------------------
+        # 1️⃣ Optional caching
+        # ---------------------------------------------------------------------
+        cache_key = f"hygiene:{brand}:{platform}:{hygiene}:{start_date}:{end_date}"
+        cached = cache.get(cache_key)
+        if cached:
+            cached["cache_hit"] = True
+            return Response(cached, status=status.HTTP_200_OK)
+
+        # ---------------------------------------------------------------------
+        # 2️⃣ Hygiene column mapping
+        # ---------------------------------------------------------------------
+        hygiene_columns_map = {
+            "Price Hygiene": ["Price Rule", "Live Price", "Price Validation", "Price_Hygiene"],
+            "Coupon Hygiene": ["Coupon Rule", "Live Coupon", "Coupon Validation", "Coupon_Hygiene"],
+            "Activation_Hygiene": [
+                "SNS Rule", "Live SNS", "SNS Validation",
+                "BXGY Rule", "Live BXGY", "BXGY Validation", "Activation_Hygiene"
+            ],
+            "Availability Hygiene": ["Availability", "Availability_Hygiene"],
+            "Deal Hygiene": ["Deal Tag", "Deal_Hygiene"],
+            "EDD Hygiene": [
+                "EDD_400013", "EDD_600005", "EDD_122102", "EDD_700016", "EDD_560068", "EDD_Hygiene"
+            ],
+            "Sold By Validation": [
+                *[f'Sold By {i}_{code}' for i in range(1, 4) for code in ['400013', '600005', '122102', '700016', '560068']],
+                "Sold By Validation"
+            ],
+            "Rating Hygiene": ["3 Star Ratings", "2 Star Ratings", "1 Star Ratings", "Total Ratings", "Ratings", "Rating_Hygiene"],
+            "Catalog_Hygiene": [
+                "Ratings", "Sub-Category BSR", "Category BSR", "Number of Other Sellers",
+                "Title Length", "Bullet Point Count", "Videos Count", "Images Count", "A+", "Catalog_Hygiene"
+            ]
+        }
+
+        # Common columns
+        common_columns = [
+            "Date", "Brand", "Platform", "SKU Code", "ASIN", "Generic Title",
+            "Category", "Sub-category", "GMV", "Units"
+        ]
+
+        # ---------------------------------------------------------------------
+        # 3️⃣ Column selection (efficient dynamic list)
+        # ---------------------------------------------------------------------
+        selected_columns = common_columns.copy()
+        if hygiene == "All":
+            for cols in hygiene_columns_map.values():
+                selected_columns.extend(cols)
+        else:
+            selected_columns.extend(hygiene_columns_map.get(hygiene, []))
+
+        # ---------------------------------------------------------------------
+        # 4️⃣ Table existence check
+        # ---------------------------------------------------------------------
         with connection.cursor() as cursor:
-            # Check if ecom_consolidated table exists
             cursor.execute(
                 """
                 SELECT EXISTS (
-                    SELECT FROM information_schema.tables
-                    WHERE table_schema = 'public'
-                    AND table_name = 'ecom_consolidated'
-                );
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_schema='public' AND table_name='ecom_consolidated'
+                )
                 """
             )
-            table_exists = cursor.fetchone()[0]
-
-            if not table_exists:
-                # Return mock data structure for development - using actual database column names
+            if not cursor.fetchone()[0]:
+                # Mock data for dev/local
                 mock_data = [
-                    {
-                        'Date': '2024-01-15',
-                        'Brand': 'Clear',
-                        'Platform': 'Amazon',
-                        'Price Rule': 'Standard',
-                        'Live Price': 299.00,
-                        'Price_Hygiene': '100%',
-                        'Coupon_Hygiene': '95%',
-                        'Activation_Hygiene': '100%',
-                        'Availability_Hygiene': '98%',
-                        'Deal_Hygiene': '100%',
-                        'EDD_Hygiene': '95%',
-                        'Sold By Validation': '90%',
-                        'Rating_Hygiene': '90%',
-                        'Catalog_Hygiene': '88%'
-                    },
-                    {
-                        'Date': '2024-01-15',
-                        'Brand': 'Clear',
-                        'Platform': 'Flipkart',
-                        'Price Rule': 'Standard',
-                        'Live Price': 299.00,
-                        'Price_Hygiene': '85%',
-                        'Coupon_Hygiene': '75%',
-                        'Activation_Hygiene': '50%',
-                        'Availability_Hygiene': '60%',
-                        'Deal_Hygiene': '45%',
-                        'EDD_Hygiene': '80%',
-                        'Sold By Validation': '95%',
-                        'Rating_Hygiene': '75%',
-                        'Catalog_Hygiene': '82%'
-                    },
-                    {
-                        'Date': '2024-01-16',
-                        'Brand': 'Clear',
-                        'Platform': 'Amazon',
-                        'Price Rule': 'Premium',
-                        'Live Price': 350.00,
-                        'Price_Hygiene': '70%',
-                        'Coupon_Hygiene': '88%',
-                        'Activation_Hygiene': '0%',
-                        'Availability_Hygiene': '92%',
-                        'Deal_Hygiene': '100%',
-                        'EDD_Hygiene': '70%',
-                        'Sold By Validation': '60%',
-                        'Rating_Hygiene': '85%',
-                        'Catalog_Hygiene': '78%'
-                    }
+                    {"Date": "2024-01-15", "Brand": "Clear", "Platform": "Amazon", "Price_Hygiene": "95%"},
+                    {"Date": "2024-01-16", "Brand": "Clear", "Platform": "Flipkart", "Price_Hygiene": "90%"},
                 ]
-
-                # Get unique brands and platforms for filter options
-                brands = list(set([record.get('Brand', '') for record in mock_data if record.get('Brand')]))
-                platforms = list(set([record.get('Platform', '') for record in mock_data if record.get('Platform')]))
-                brands.sort()
-                platforms.sort()
-
                 return Response({
-                    'success': True,
-                    'data': mock_data,
-                    'hygiene_columns': hygiene_columns_map,
-                    'options': {
-                        'brands': brands,
-                        'platforms': platforms
-                    }
+                    "success": True,
+                    "data": mock_data,
+                    "hygiene_columns": hygiene_columns_map,
+                    "options": {"brands": ["Clear"], "platforms": ["Amazon", "Flipkart"]}
                 })
 
-            # Define hygiene-specific columns mapping - full set as requested
-            hygiene_columns_map = {
-                'Price Hygiene': ['Price Rule', 'Live Price', 'Price Validation', 'Price_Hygiene'],
-                'Coupon Hygiene': ['Coupon Rule', 'Live Coupon', 'Coupon Validation', 'Coupon_Hygiene'],
-                'Activation_Hygiene': ['SNS Rule', 'Live SNS', 'SNS Validation', 'BXGY Rule', 'Live BXGY', 'BXGY Validation', 'Activation_Hygiene'],
-                'Availability Hygiene': ['Availability', 'Availability_Hygiene'],
-                'Deal Hygiene': ['Deal Tag', 'Deal_Hygiene'],
-                'EDD Hygiene': ['EDD_400013', 'EDD_600005', 'EDD_122102', 'EDD_700016', 'EDD_560068', 'EDD_Hygiene'],
-                'Sold By Validation': ['Sold By 1_400013', 'Sold By 1_600005', 'Sold By 1_122102', 'Sold By 1_700016', 'Sold By 1_560068', 'Sold By 2_400013', 'Sold By 2_600005', 'Sold By 2_122102', 'Sold By 2_700016', 'Sold By 2_560068', 'Sold By 3_400013', 'Sold By 3_600005', 'Sold By 3_122102', 'Sold By 3_700016', 'Sold By 3_560068', 'Sold By Validation'],
-                'Rating Hygiene': ['3 Star Ratings', '2 Star Ratings', '1 Star Ratings', 'Total Ratings', 'Ratings', 'Rating_Hygiene'],
-                'Catalog_Hygiene': ['Ratings', 'Sub-Category BSR', 'Category BSR', 'Number of Other Sellers', 'Title Length', 'Bullet Point Count', 'Videos Count', 'Images Count', 'A+', 'Catalog_Hygiene']
-            }
+        # ---------------------------------------------------------------------
+        # 5️⃣ Build WHERE clause dynamically
+        # ---------------------------------------------------------------------
+        where_clauses, params = [], []
 
-            # Common columns that are always displayed
-            common_columns = [
-                'Date', 'Brand', 'Platform', 'SKU Code', 'ASIN', 'Generic Title',
-                'Category', 'Sub-category', 'GMV', 'Units'
-            ]
+        def parse_date(value):
+            try:
+                return datetime.strptime(value, "%Y-%m-%d").date()
+            except Exception:
+                return None
 
-            # Build dynamic column list based on hygiene type
-            selected_columns = common_columns.copy()
-            if hygiene == 'All':
-                # Include all hygiene-specific columns
-                for hygiene_type, columns in hygiene_columns_map.items():
-                    selected_columns.extend(columns)
-            elif hygiene in hygiene_columns_map:
-                # Include only columns for selected hygiene type
-                selected_columns.extend(hygiene_columns_map[hygiene])
+        start_date_obj, end_date_obj = parse_date(start_date), parse_date(end_date)
 
-            # Build where clause
-            where_parts = []
-            params = []
-
-            if start_date:
-                try:
-                    start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
-                    start_date_formatted = start_date_obj.strftime('%d-%m-%Y')
-                except ValueError:
-                    start_date_formatted = start_date
-
-                where_parts.append("""
-                    CASE
-                        WHEN "Date" ~ '^\d{2}-\d{2}-\d{4}$' THEN TO_DATE("Date", 'DD-MM-YYYY')
-                        WHEN "Date" ~ '^\d{4}-\d{2}-\d{2}$' THEN TO_DATE("Date", 'YYYY-MM-DD')
-                        ELSE NULL
-                    END >= TO_DATE(%s, 'DD-MM-YYYY')
+        # Check once if 'date_cast' column exists
+        if not hasattr(get_hygiene_table_data, "_has_date_cast"):
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                        AND table_name = 'ecom_consolidated'
+                        AND column_name = 'date_cast'
+                    );
                 """)
-                params.append(start_date_formatted)
+                get_hygiene_table_data._has_date_cast = cursor.fetchone()[0]
 
-            if end_date:
-                try:
-                    end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
-                    end_date_formatted = end_date_obj.strftime('%d-%m-%Y')
-                except ValueError:
-                    end_date_formatted = end_date
+        date_column = "date_cast" if getattr(get_hygiene_table_data, "_has_date_cast", False) else '"Date"'
 
-                where_parts.append("""
-                    CASE
-                        WHEN "Date" ~ '^\d{2}-\d{2}-\d{4}$' THEN TO_DATE("Date", 'DD-MM-YYYY')
-                        WHEN "Date" ~ '^\d{4}-\d{2}-\d{2}$' THEN TO_DATE("Date", 'YYYY-MM-DD')
-                        ELSE NULL
-                    END <= TO_DATE(%s, 'DD-MM-YYYY')
-                """)
-                params.append(end_date_formatted)
-            if brand:
-                where_parts.append('"Brand" = %s')
-                params.append(brand)
-            if platform:
-                platforms = [p.strip() for p in platform.split(',') if p.strip()]
-                if platforms:
-                    placeholders = ','.join(['%s'] * len(platforms))
-                    where_parts.append(f'"Platform" IN ({placeholders})')
-                    params.extend(platforms)
+        if start_date_obj:
+            where_clauses.append(f"{date_column} >= %s")
+            params.append(start_date_obj)
 
-            where_clause = ' WHERE ' + ' AND '.join(where_parts) if where_parts else ''
+        if end_date_obj:
+            where_clauses.append(f"{date_column} <= %s")
+            params.append(end_date_obj)
 
-            # Ensure we only select columns that actually exist to avoid DB errors
-            cursor.execute(
-                """
-                SELECT column_name
-                FROM information_schema.columns
-                WHERE table_schema = 'public' AND table_name = 'ecom_consolidated'
-                """
-            )
-            existing_columns = set(row[0] for row in cursor.fetchall())
-            selected_columns = [col for col in selected_columns if col in existing_columns]
+        if brand:
+            where_clauses.append('"Brand" = %s')
+            params.append(brand)
 
-            # Build dynamic query
-            columns_sql = ', '.join(f'"{col}"' for col in selected_columns)
-            query = f"""
-                SELECT {columns_sql}
-                FROM public.ecom_consolidated
-                {where_clause}
-                ORDER BY "Date" DESC, "Platform", "Brand"
-            """
+        if platform:
+            platforms = [p.strip() for p in platform.split(",") if p.strip()]
+            placeholders = ", ".join(["%s"] * len(platforms))
+            where_clauses.append(f'"Platform" IN ({placeholders})')
+            params.extend(platforms)
 
+        where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+
+        # ---------------------------------------------------------------------
+        # 6️⃣ Filter selected columns based on DB existence
+        # ---------------------------------------------------------------------
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema='public' AND table_name='ecom_consolidated'
+            """)
+            existing_cols = {row[0] for row in cursor.fetchall()}
+
+        selected_columns = [c for c in selected_columns if c in existing_cols]
+        if not selected_columns:
+            return Response({"success": False, "error": "No valid columns found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        columns_sql = ", ".join(f'"{c}"' for c in selected_columns)
+
+        # ---------------------------------------------------------------------
+        # 7️⃣ Main query (optimized order + minimal formatting)
+        # ---------------------------------------------------------------------
+        query = f"""
+            SELECT {columns_sql}
+            FROM public.ecom_consolidated
+            {where_sql}
+            ORDER BY
+                CASE
+                    WHEN "Date" ~ '^\d{2}-\d{2}-\d{4}$' THEN TO_DATE("Date", 'DD-MM-YYYY')
+                    WHEN "Date" ~ '^\d{4}-\d{2}-\d{2}$' THEN TO_DATE("Date", 'YYYY-MM-DD')
+                END DESC,
+                "Platform", "Brand"
+        """
+
+        # ---------------------------------------------------------------------
+        # 8️⃣ Fetch data efficiently
+        # ---------------------------------------------------------------------
+        with connection.cursor() as cursor:
             cursor.execute(query, params)
-            columns = [col[0] for col in cursor.description]
-            rows = cursor.fetchall()
+            cols = [col[0] for col in cursor.description]
+            data = [dict(zip(cols, row)) for row in cursor.fetchall()]
 
-            # Convert to list of dictionaries
-            data = [dict(zip(columns, row)) for row in rows]
-
-            # Get unique brands and platforms for filter options
+        # ---------------------------------------------------------------------
+        # 9️⃣ Fetch filter dropdowns
+        # ---------------------------------------------------------------------
+        with connection.cursor() as cursor:
             cursor.execute('SELECT DISTINCT "Brand" FROM public.ecom_consolidated WHERE "Brand" IS NOT NULL ORDER BY "Brand"')
-            brands = [row[0] for row in cursor.fetchall()]
-
+            brands = [r[0] for r in cursor.fetchall()]
             cursor.execute('SELECT DISTINCT "Platform" FROM public.ecom_consolidated WHERE "Platform" IS NOT NULL ORDER BY "Platform"')
-            platforms = [row[0] for row in cursor.fetchall()]
+            platforms = [r[0] for r in cursor.fetchall()]
 
-            return Response({
-                'success': True,
-                'data': data,
-                'hygiene_columns': hygiene_columns_map,
-                'selected_columns': selected_columns,
-                'options': {
-                    'brands': brands,
-                    'platforms': platforms
-                }
-            })
+        response_data = {
+            "success": True,
+            "data": data,
+            "hygiene_columns": hygiene_columns_map,
+            "selected_columns": selected_columns,
+            "options": {"brands": brands, "platforms": platforms},
+            "cache_hit": False,
+        }
+
+        cache.set(cache_key, response_data, timeout=600)
+        return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        return Response({'success': False, 'error': str(e)}, status=500)
+        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

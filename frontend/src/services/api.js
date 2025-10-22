@@ -225,7 +225,12 @@ export const fetchCorrelationMatrix = async (filters = {}) => {
 };
 
 // Hygiene Table View - Fetch hygiene table data from public.ecom_consolidated
+let hygieneTableRequestId = 0; // Request identifier to prevent race conditions
+
 export const fetchHygieneTable = async (filters = {}) => {
+  // Generate a unique request ID for this call
+  const currentRequestId = ++hygieneTableRequestId;
+
   const params = new URLSearchParams();
   if (filters.startDate) params.append('start_date', filters.startDate);
   if (filters.endDate) params.append('end_date', filters.endDate);
@@ -235,8 +240,25 @@ export const fetchHygieneTable = async (filters = {}) => {
   }
   if (filters.hygiene) params.append('hygiene', filters.hygiene);
 
+  // Create a small delay to allow other potential calls to be canceled
+  await new Promise(resolve => setTimeout(resolve, 50));
+
+  // If another request has been made after this one, abort this request
+  if (currentRequestId !== hygieneTableRequestId) {
+    console.log('Cancelling stale hygiene table request');
+    return { success: false, canceled: true };
+  }
+
+  // Make the API call only if this is still the most recent request
   const response = await api.get(`hygiene-table/?${params.toString()}`);
-  return response.data;
+
+  // Return the data only if this is still the most recent request
+  if (currentRequestId === hygieneTableRequestId) {
+    return response.data;
+  } else {
+    console.log('Discarding results from stale hygiene table request');
+    return { success: false, canceled: true };
+  }
 };
 
 
