@@ -182,6 +182,7 @@ const HygieneTable = () => {
           <input
             type="date"
             value={localFilters.endDate}
+            max={new Date().toISOString().split('T')[0]}
             onChange={(e) => handleFilterChange("endDate", e.target.value)}
           />
         </div>
