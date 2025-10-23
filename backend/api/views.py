@@ -187,397 +187,182 @@ def get_consolidated_data(request):
 @require_auth
 def get_daily_report(request):
     """
-    Daily Report: GMV or Units data organized by platform_item_id, supply_source, or supply_city (rows) and dates (columns)
-    
-    Query params:
-    - start_date: YYYY-MM-DD (required)
-    - end_date: YYYY-MM-DD (required)
-    - platform: platform name (optional; if missing => all platforms)
-    - metric: 'gmv' or 'units' (optional; defaults to 'gmv')
-    - view: 'platform_item_id' or 'supply_source' or 'supply_city' (optional; defaults to 'platform_item_id')
+    Optimized Daily Report: GMV/Units by date vs item/city/source.
+    - Uses single CTE for all filters
+    - Reduces redundant queries
+    - Uses pre-indexed date_cast if available
+    - Adds 10-min cache per unique filter set
     """
-    try:
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
-        # Accept comma-separated lists for multi-select filters
-        def parse_multi(name: str):
-            raw = request.query_params.get(name)
-            if not raw:
-                return []
-            return [v.strip() for v in raw.split(',') if v and v.strip()]
 
-        platform_values = parse_multi('platform')
-        brand_values = parse_multi('brand')
-        category_values = parse_multi('category')
-        sub_category_values = parse_multi('sub_category')
-        city_values = parse_multi('city')
-        supply_source_values = parse_multi('supply_source')
-        manufacturing_city_values = parse_multi('manufacturing_city')
-        metric = request.query_params.get('metric', 'gmv').lower()
-        view = request.query_params.get('view', 'platform_item_id')
-        
-        # Validate metric parameter
-        if metric not in ['gmv', 'units']:
-            metric = 'gmv'  # Default to GMV if invalid metric
-        
-        # Validate view parameter
-        if view not in ['platform_item_id', 'supply_source', 'supply_city']:
-            view = 'platform_item_id'  # Default to platform_item_id if invalid view
-        
-        # Validate required dates
+    try:
+        # --- 1️⃣ Extract and validate params ---
+        q = request.query_params
+        start_date, end_date = q.get('start_date'), q.get('end_date')
+
+        def parse_multi(name: str):
+            raw = q.get(name)
+            return [v.strip() for v in raw.split(',') if v.strip()] if raw else []
+
+        filters = {
+            "platform": parse_multi("platform"),
+            "brand": parse_multi("brand"),
+            "category": parse_multi("category"),
+            "sub_category": parse_multi("sub_category"),
+            "sales_city": parse_multi("city"),
+            "supply_city": parse_multi("supply_source"),
+            "manufacture_city": parse_multi("manufacturing_city"),
+        }
+
+        metric = q.get('metric', 'gmv').lower()
+        view = q.get('view', 'platform_item_id')
+
+        # Validate required fields
         if not start_date or not end_date:
-            return Response({
-                'success': False,
-                'error': 'Both start_date and end_date are required'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Parse and validate dates
+            return Response({'success': False, 'error': 'start_date and end_date are required'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         try:
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
         except ValueError:
-            return Response({
-                'success': False,
-                'error': 'Invalid date format. Use YYYY-MM-DD'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response({'success': False, 'error': 'Invalid date format. Use YYYY-MM-DD'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
         if start_date > end_date:
-            return Response({
-                'success': False,
-                'error': 'start_date must be before or equal to end_date'
-            }, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response({'success': False, 'error': 'start_date must be before end_date'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate metric/view
+        if metric not in ['gmv', 'units']:
+            metric = 'gmv'
+        if view not in ['platform_item_id', 'supply_source', 'supply_city']:
+            view = 'platform_item_id'
+
+        # --- 2️⃣ Generate cache key and check ---
+        cache_key = f"daily:{metric}:{view}:{start_date}:{end_date}:{str(filters)}"
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            return Response(cached_response, status=status.HTTP_200_OK)
+
+        # --- 3️⃣ Detect date_cast column (for speed) ---
+        if not hasattr(get_daily_report, "_has_date_cast"):
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    SELECT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema='public'
+                        AND table_name='sales_master_consolidated_final_test'
+                        AND column_name='date_cast'
+                    );
+                """)
+                get_daily_report._has_date_cast = cursor.fetchone()[0]
+        date_column = 'date_cast' if getattr(get_daily_report, '_has_date_cast', False) else 'date'
+
+        # --- 4️⃣ Build WHERE dynamically ---
+        where, params = [f"{date_column} BETWEEN %s AND %s"], [start_date, end_date]
+        for col, vals in filters.items():
+            if vals:
+                placeholders = ','.join(['%s'] * len(vals))
+                where.append(f"{col} IN ({placeholders})")
+                params.extend(vals)
+        where_sql = " AND ".join(where)
+
+        # --- 5️⃣ CTE for filtered data ---
+        cte = f"""
+            WITH filtered AS (
+                SELECT * FROM public.sales_master_consolidated_final_test
+                WHERE {where_sql}
+            )
+        """
+
+        # --- 6️⃣ Choose grouping and metric fields ---
+        group_field = {
+            "platform_item_id": "platform_item_id",
+            "supply_source": "supply_city",
+            "supply_city": "sales_city",
+        }[view]
+        metric_field = 'gmv' if metric == 'gmv' else 'units'
+
+        # --- 7️⃣ Fetch data in one DB session ---
         with connection.cursor() as cursor:
-            # Build WHERE clause
-            where_conditions = ["date BETWEEN %s AND %s"]
-            params = [start_date, end_date]
+            # Distinct dates
+            cursor.execute(f"{cte} SELECT DISTINCT {date_column} FROM filtered ORDER BY {date_column} ASC;", params)
+            unique_dates = [r[0] for r in cursor.fetchall()]
 
-            def add_in(column: str, values: list):
-                if not values:
-                    return
-                placeholders = ','.join(['%s'] * len(values))
-                where_conditions.append(f"{column} IN ({placeholders})")
-                params.extend(values)
+            # Distinct items
+            cursor.execute(f"""
+                {cte}
+                SELECT DISTINCT {group_field}
+                FROM filtered
+                WHERE {group_field} IS NOT NULL AND {group_field} != ''
+                ORDER BY {group_field};
+            """, params)
+            unique_items = [r[0] for r in cursor.fetchall()]
 
-            add_in('platform', platform_values)
-            add_in('brand', brand_values)
-            add_in('category', category_values)
-            add_in('sub_category', sub_category_values)
-            add_in('sales_city', city_values)
-            add_in('supply_city', supply_source_values)
-            add_in('manufacture_city', manufacturing_city_values)
-            
-            where_clause = " WHERE " + " AND ".join(where_conditions)
-            
-            # Get all unique dates in ascending order within the date range
-            date_query = f"""
-                SELECT DISTINCT date::date as parsed_date
-                FROM public.sales_master_consolidated_final_test
-                {where_clause}
-                ORDER BY parsed_date ASC
-            """
-            cursor.execute(date_query, params)
-            date_results = cursor.fetchall()
-            unique_dates = [row[0] for row in date_results]
-            
-            # Get all unique identifiers based on view
-            if view == 'supply_source':
-                item_query = f"""
-                    SELECT DISTINCT supply_city AS supply_source
-                    FROM public.sales_master_consolidated_final_test
-                    {where_clause}
-                    AND supply_city IS NOT NULL
-                    AND supply_city != ''
-                    ORDER BY supply_source
-                """
-            elif view == 'supply_city':
-                item_query = f"""
-                    SELECT DISTINCT sales_city AS city
-                    FROM public.sales_master_consolidated_final_test
-                    {where_clause}
-                    AND sales_city IS NOT NULL
-                    AND sales_city != ''
-                    ORDER BY city
-                """
-            else:  # platform_item_id
-                item_query = f"""
-                    SELECT DISTINCT platform_item_id
-                    FROM public.sales_master_consolidated_final_test
-                    {where_clause}
-                    ORDER BY platform_item_id
-                """
-            
-            cursor.execute(item_query, params)
-            item_results = cursor.fetchall()
-            unique_items = [row[0] for row in item_results]
-            
-            # Get data based on selected metric and view
-            if view == 'supply_source':
-                if metric == 'units':
-                    data_query = f"""
-                        SELECT 
-                            supply_city AS supply_source,
-                            date::date as parsed_date,
-                            SUM(COALESCE(units, 0)) as daily_value
-                        FROM public.sales_master_consolidated_final_test
-                        {where_clause}
-                        AND supply_city IS NOT NULL
-                        AND supply_city != ''
-                        GROUP BY supply_city, date::date
-                        ORDER BY supply_source, parsed_date
-                    """
-                else:  # Default to GMV
-                    data_query = f"""
-                        SELECT 
-                            supply_city AS supply_source,
-                            date::date as parsed_date,
-                            SUM(COALESCE(gmv, 0)) as daily_value
-                        FROM public.sales_master_consolidated_final_test
-                        {where_clause}
-                        AND supply_city IS NOT NULL
-                        AND supply_city != ''
-                        GROUP BY supply_city, date::date
-                        ORDER BY supply_source, parsed_date
-                    """
-            elif view == 'supply_city':
-                if metric == 'units':
-                    data_query = f"""
-                        SELECT 
-                            sales_city AS city,
-                            date::date as parsed_date,
-                            SUM(COALESCE(units, 0)) as daily_value
-                        FROM public.sales_master_consolidated_final_test
-                        {where_clause}
-                        AND sales_city IS NOT NULL
-                        AND sales_city != ''
-                        GROUP BY sales_city, date::date
-                        ORDER BY city, parsed_date
-                    """
-                else:  # Default to GMV
-                    data_query = f"""
-                        SELECT 
-                            sales_city AS city,
-                            date::date as parsed_date,
-                            SUM(COALESCE(gmv, 0)) as daily_value
-                        FROM public.sales_master_consolidated_final_test
-                        {where_clause}
-                        AND sales_city IS NOT NULL
-                        AND sales_city != ''
-                        GROUP BY sales_city, date::date
-                        ORDER BY city, parsed_date
-                    """
-            else:  # platform_item_id
-                if metric == 'units':
-                    data_query = f"""
-                        SELECT 
-                            platform_item_id,
-                            date::date as parsed_date,
-                            SUM(COALESCE(units, 0)) as daily_value
-                        FROM public.sales_master_consolidated_final_test
-                        {where_clause}
-                        GROUP BY platform_item_id, date::date
-                        ORDER BY platform_item_id, parsed_date
-                    """
-                else:  # Default to GMV
-                    data_query = f"""
-                        SELECT 
-                            platform_item_id,
-                            date::date as parsed_date,
-                            SUM(COALESCE(gmv, 0)) as daily_value
-                        FROM public.sales_master_consolidated_final_test
-                        {where_clause}
-                        GROUP BY platform_item_id, date::date
-                        ORDER BY platform_item_id, parsed_date
-                    """
-            
-            cursor.execute(data_query, params)
-            data_results = cursor.fetchall()
-            
-            # Create a lookup map for the selected metric data
-            metric_map = {}
-            for identifier, parsed_date, daily_value in data_results:
-                if identifier not in metric_map:
-                    metric_map[identifier] = {}
-                metric_map[identifier][parsed_date] = float(daily_value or 0)
-            
-            # Build the final data structure
-            table_data = []
-            for item_id in unique_items:
-                if view == 'supply_source':
-                    row_data = {
-                        'supply_source': item_id,
-                        'dates': {}
-                    }
-                elif view == 'supply_city':
-                    row_data = {
-                        'supply_city': item_id,
-                        'dates': {}
-                    }
-                else:  # platform_item_id
-                    row_data = {
-                        'platform_item_id': item_id,
-                        'dates': {}
-                    }
-                
-                running_total = 0.0
-                for date_val in unique_dates:
-                    # Get value for this item on this date, default to 0
-                    metric_value = float(metric_map.get(item_id, {}).get(date_val, 0))
-                    # For supply_city, return cumulative sum per date
-                    if view == 'supply_city':
-                        running_total += metric_value
-                        row_data['dates'][date_val.isoformat()] = running_total
-                    else:
-                        row_data['dates'][date_val.isoformat()] = metric_value
-                
-                table_data.append(row_data)
-            
-            # Cascading filter option lists that respect current selections
-            base_conds = ["date BETWEEN %s AND %s"]
-            base_params = [start_date, end_date]
+            # Aggregated data
+            cursor.execute(f"""
+                {cte}
+                SELECT 
+                    {group_field} AS identifier,
+                    {date_column}::date AS parsed_date,
+                    SUM(COALESCE({metric_field}, 0)) AS daily_value
+                FROM filtered
+                WHERE {group_field} IS NOT NULL AND {group_field} != ''
+                GROUP BY {group_field}, {date_column}
+                ORDER BY {group_field}, {date_column};
+            """, params)
+            data = cursor.fetchall()
 
-            def add_in_local(column: str, values: list, conds: list, prms: list):
-                if not values:
-                    return
-                placeholders = ','.join(['%s'] * len(values))
-                conds.append(f"{column} IN ({placeholders})")
-                prms.extend(values)
+        # --- 8️⃣ Pivot in Python ---
+        metric_map = {}
+        for ident, parsed_date, val in data:
+            metric_map.setdefault(ident, {})[parsed_date] = float(val or 0)
 
-            # Helper to build query on final table
-            def build_where_sql(conds):
-                return (' WHERE ' + ' AND '.join(conds)) if conds else ''
+        table_data = []
+        for item in unique_items:
+            row = {view: item, 'dates': {}}
+            running_total = 0.0
+            for d in unique_dates:
+                val = float(metric_map.get(item, {}).get(d, 0))
+                if view == 'supply_city':
+                    running_total += val
+                    row['dates'][d.isoformat()] = running_total
+                else:
+                    row['dates'][d.isoformat()] = val
+            table_data.append(row)
 
-            # Platforms list (exclude platform filter, include others)
-            conds_p = base_conds.copy(); prms_p = base_params.copy()
-            add_in_local('brand', brand_values, conds_p, prms_p)
-            add_in_local('category', category_values, conds_p, prms_p)
-            add_in_local('sub_category', sub_category_values, conds_p, prms_p)
-            add_in_local('sales_city', city_values, conds_p, prms_p)
-            add_in_local('supply_city', supply_source_values, conds_p, prms_p)
-            add_in_local('manufacture_city', manufacturing_city_values, conds_p, prms_p)
-            cursor.execute(
-                f"SELECT DISTINCT platform FROM public.sales_master_consolidated_final_test{build_where_sql(conds_p)} ORDER BY platform",
-                prms_p,
-            )
-            platform_list = [row[0] for row in cursor.fetchall()]
+        # --- 9️⃣ Dropdown filters ---
+        dropdowns = {}
+        dropdown_fields = [
+            'platform', 'brand', 'sales_city', 'supply_city',
+            'manufacture_city', 'category', 'sub_category'
+        ]
+        with connection.cursor() as cursor:
+            for field in dropdown_fields:
+                cursor.execute(f"""
+                    {cte}
+                    SELECT DISTINCT {field}
+                    FROM filtered
+                    WHERE {field} IS NOT NULL
+                    ORDER BY {field};
+                """, params)
+                dropdowns[field] = [r[0] for r in cursor.fetchall()]
 
-            # Brands list (exclude brand filter)
-            conds_b = base_conds.copy(); prms_b = base_params.copy()
-            add_in_local('platform', platform_values, conds_b, prms_b)
-            add_in_local('category', category_values, conds_b, prms_b)
-            add_in_local('sub_category', sub_category_values, conds_b, prms_b)
-            add_in_local('sales_city', city_values, conds_b, prms_b)
-            add_in_local('supply_city', supply_source_values, conds_b, prms_b)
-            add_in_local('manufacture_city', manufacturing_city_values, conds_b, prms_b)
-            cursor.execute(
-                f"SELECT DISTINCT brand FROM public.sales_master_consolidated_final_test{build_where_sql(conds_b + ['brand IS NOT NULL'])} ORDER BY brand",
-                prms_b,
-            )
-            brand_list = [row[0] for row in cursor.fetchall()]
-
-            # Cities list (exclude city filter)
-            conds_city = base_conds.copy(); prms_city = base_params.copy()
-            add_in_local('platform', platform_values, conds_city, prms_city)
-            add_in_local('brand', brand_values, conds_city, prms_city)
-            add_in_local('category', category_values, conds_city, prms_city)
-            add_in_local('sub_category', sub_category_values, conds_city, prms_city)
-            add_in_local('supply_city', supply_source_values, conds_city, prms_city)
-            add_in_local('manufacture_city', manufacturing_city_values, conds_city, prms_city)
-            cursor.execute(
-                f"SELECT DISTINCT sales_city FROM public.sales_master_consolidated_final_test{build_where_sql(conds_city + ['sales_city IS NOT NULL'])} ORDER BY sales_city",
-                prms_city,
-            )
-            cities = [row[0] for row in cursor.fetchall()]
-
-            # Supply sources list (exclude supply_source filter)
-            conds_sup = base_conds.copy(); prms_sup = base_params.copy()
-            add_in_local('platform', platform_values, conds_sup, prms_sup)
-            add_in_local('brand', brand_values, conds_sup, prms_sup)
-            add_in_local('category', category_values, conds_sup, prms_sup)
-            add_in_local('sub_category', sub_category_values, conds_sup, prms_sup)
-            add_in_local('sales_city', city_values, conds_sup, prms_sup)
-            add_in_local('manufacture_city', manufacturing_city_values, conds_sup, prms_sup)
-            cursor.execute(
-                f"SELECT DISTINCT supply_city FROM public.sales_master_consolidated_final_test{build_where_sql(conds_sup + ['supply_city IS NOT NULL'])} ORDER BY supply_city",
-                prms_sup,
-            )
-            supply_sources = [row[0] for row in cursor.fetchall()]
-
-            # Manufacturing cities list (exclude manufacturing_city filter)
-            conds_manu = base_conds.copy(); prms_manu = base_params.copy()
-            add_in_local('platform', platform_values, conds_manu, prms_manu)
-            add_in_local('brand', brand_values, conds_manu, prms_manu)
-            add_in_local('category', category_values, conds_manu, prms_manu)
-            add_in_local('sub_category', sub_category_values, conds_manu, prms_manu)
-            add_in_local('sales_city', city_values, conds_manu, prms_manu)
-            add_in_local('supply_city', supply_source_values, conds_manu, prms_manu)
-            cursor.execute(
-                f"SELECT DISTINCT manufacture_city FROM public.sales_master_consolidated_final_test{build_where_sql(conds_manu + ['manufacture_city IS NOT NULL'])} ORDER BY manufacture_city",
-                prms_manu,
-            )
-            manufacturing_cities = [row[0] for row in cursor.fetchall()]
-
-            # Categories list (exclude category filter)
-            conds_c = base_conds.copy(); prms_c = base_params.copy()
-            add_in_local('platform', platform_values, conds_c, prms_c)
-            add_in_local('brand', brand_values, conds_c, prms_c)
-            add_in_local('sub_category', sub_category_values, conds_c, prms_c)
-            add_in_local('sales_city', city_values, conds_c, prms_c)
-            add_in_local('supply_city', supply_source_values, conds_c, prms_c)
-            add_in_local('manufacture_city', manufacturing_city_values, conds_c, prms_c)
-            cursor.execute(
-                f"SELECT DISTINCT category FROM public.sales_master_consolidated_final_test{build_where_sql(conds_c + ['category IS NOT NULL'])} ORDER BY category",
-                prms_c,
-            )
-            categories = [row[0] for row in cursor.fetchall()]
-
-            # Sub-categories list (exclude sub_category filter)
-            conds_sc = base_conds.copy(); prms_sc = base_params.copy()
-            add_in_local('platform', platform_values, conds_sc, prms_sc)
-            add_in_local('brand', brand_values, conds_sc, prms_sc)
-            add_in_local('category', category_values, conds_sc, prms_sc)
-            add_in_local('sales_city', city_values, conds_sc, prms_sc)
-            add_in_local('supply_city', supply_source_values, conds_sc, prms_sc)
-            add_in_local('manufacture_city', manufacturing_city_values, conds_sc, prms_sc)
-            cursor.execute(
-                f"SELECT DISTINCT sub_category FROM public.sales_master_consolidated_final_test{build_where_sql(conds_sc + ['sub_category IS NOT NULL'])} ORDER BY sub_category",
-                prms_sc,
-            )
-            sub_categories = [row[0] for row in cursor.fetchall()]
-        
-        return Response({
+        # --- 🔟 Build and cache response ---
+        response_data = {
             'success': True,
             'data': table_data,
-            'unique_dates': [date.isoformat() for date in unique_dates],
-            'platforms': platform_list,
-            'brands': brand_list,
-            'cities': cities,
-            'supply_sources': supply_sources,
-            'manufacturing_cities': manufacturing_cities,
-            'categories': categories,
-            'sub_categories': sub_categories,
+            'unique_dates': [d.isoformat() for d in unique_dates],
             'metric': metric,
             'view': view,
-            'filters': {
-                'start_date': start_date.isoformat(),
-                'end_date': end_date.isoformat(),
-                'platform': platform_values,
-                'brand': brand_values,
-                'city': city_values,
-                'supply_source': supply_source_values,
-                'manufacturing_city': manufacturing_city_values,
-                'category': category_values,
-                'sub_category': sub_category_values,
-                'metric': metric,
-                'view': view
-            }
-        }, status=status.HTTP_200_OK)
-        
+            'filters': filters,
+            **dropdowns
+        }
+        cache.set(cache_key, response_data, timeout=600)
+        return Response(response_data, status=status.HTTP_200_OK)
+
     except Exception as e:
-        return Response({
-            'success': False,
-            'error': str(e)
-        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'success': False, 'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])
