@@ -4273,7 +4273,7 @@ def get_correlation_matrix(request):
                     COALESCE(NULLIF(LOWER("Availability_Hygiene"), 'nan')::float, 0) AS "Availability_Hygiene",
                     COALESCE(NULLIF(LOWER("Deal_Hygiene"), 'nan')::float, 0) AS "Deal_Hygiene",
                     COALESCE(NULLIF(LOWER("EDD_Hygiene"), 'nan')::float, 0) AS "EDD_Hygiene",
-                    COALESCE("Sold By Validation"::float, 0) AS "Sold By Validation",
+                    COALESCE(NULLIF(LOWER("Sold By Validation"), 'nan')::float, 0) AS "Sold By Validation",
                     COALESCE(NULLIF(LOWER("Rating_Hygiene"), 'nan')::float, 0) AS "Rating_Hygiene",
                     COALESCE(NULLIF(LOWER("Catalog_Hygiene"), 'nan')::float, 0) AS "Catalog_Hygiene"
                 FROM public.ecom_consolidated
@@ -4306,7 +4306,7 @@ def get_correlation_matrix(request):
                 error_count = 0
                 for col in correlation_columns:
                     value = row.get(col, '')
-                    if isinstance(value, str) and value.strip() in ['#ERROR!', 'N/A', 'NULL', 'null', '']:
+                    if isinstance(value, str) and value.strip() in ['#ERROR!', 'N/A', 'NULL', 'null', 'nan', '']:
                         error_count += 1
                 # Allow rows with up to 2 invalid values
                 return error_count <= 2
