@@ -4,7 +4,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db import connection
 import json
-from datetime import datetime, date, timedelta
 import calendar
 from django.utils.crypto import pbkdf2
 import os
@@ -17,6 +16,7 @@ from django.core.cache import cache
 
 from .models import AppUser
 from .auth import generate_jwt, require_auth, refresh_jwt
+from .utils import *
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +28,8 @@ def get_consolidated_data(request):
     Uses CTEs and reduced query overhead for faster performance.
     """
     try:
+        username = request.current_user.full_name
+        # brands = get_allowed_brands_for_user(username)
         q = request.query_params
         brand = q.get("brand")
         start_date_str, end_date_str = q.get("start_date"), q.get("end_date")
@@ -38,12 +40,6 @@ def get_consolidated_data(request):
         if cached:
             cached["cache_hit"] = True
             return Response(cached, status=status.HTTP_200_OK)
-
-        def parse_date(val):
-            try:
-                return datetime.strptime(val, "%Y-%m-%d").date() if val else None
-            except ValueError:
-                return None
 
         start_date, end_date = parse_date(start_date_str), parse_date(end_date_str)
         if start_date_str and not start_date:
@@ -58,22 +54,6 @@ def get_consolidated_data(request):
             prev_end_date = start_date - timedelta(days=1)
             prev_start_date = prev_end_date - timedelta(days=period_days - 1)
 
-        # --- Helper to build WHERE clauses ---
-        def build_filter_clause(date1=None, date2=None, brand=None):
-            filters, params = [], []
-            if date1 and date2:
-                filters.append("date BETWEEN %s AND %s")
-                params.extend([date1, date2])
-            elif date1:
-                filters.append("date >= %s")
-                params.append(date1)
-            elif date2:
-                filters.append("date <= %s")
-                params.append(date2)
-            if brand and brand != "All Brands":
-                filters.append("brand = %s")
-                params.append(brand)
-            return (" WHERE " + " AND ".join(filters)) if filters else "", params
 
         # --- Unified query with previous & current GMV ---
         where_clause, params = build_filter_clause(start_date, end_date, brand)
@@ -154,6 +134,7 @@ def get_consolidated_data(request):
             platforms = [r[0] for r in c.fetchall()]
 
         # --- Brand list ---
+        # if brands and brands[0].upper() == 'ALL' or not brands:
         with connection.cursor() as c:
             c.execute("SELECT DISTINCT brand FROM public.sales_master_consolidated_final_test WHERE brand IS NOT NULL ORDER BY brand")
             brands = [r[0] for r in c.fetchall()]
@@ -2862,16 +2843,7 @@ def get_inventory_overview(request):
             )
             column_names = {r[0] for r in cursor.fetchall()}
 
-            # Determine canonical column names
-            # Resolve AS-ON date column robustly (supports names like "As on")
-            def resolve_col(possible_names):
-                lower_to_actual = {str(c).lower(): c for c in column_names}
-                for cand in possible_names:
-                    if cand in lower_to_actual:
-                        return lower_to_actual[cand]
-                return None
-
-            as_on_col = resolve_col(['as_on_date', 'as_on', 'as on'])
+            as_on_col = resolve_col(['as_on_date', 'as_on', 'as on'], column_names)
             if not as_on_col:
                 return Response({'success': False, 'error': 'as_on_date column not found in inventory_master_consolidated'}, status=400)
             # Quote identifier for safe SQL usage (handles spaces/case)
