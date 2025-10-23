@@ -1507,6 +1507,8 @@
   border-spacing: 0;
   font-size: 0.75rem;
   background: transparent;
+  padding: 0.75rem 1rem;
+  overflow-y: auto;
 }
 
 .data-table thead {
@@ -2701,11 +2703,9 @@
 /* Daily Report Table Styles */
 .daily-report-table-wrapper {
   overflow-x: auto;
-  overflow-y: auto;
   /* Fixed viewport width: sticky column + much wider date columns for full readability */
   width: calc(220px + 160px * 10 + 20px); /* 20px for scrollbar */
   max-width: 100%;
-  max-height: 600px;
   border: 1px solid rgba(102, 126, 234, 0.2);
   border-radius: 12px;
   position: relative;
@@ -2746,7 +2746,7 @@
 
 .daily-report-table th,
 .daily-report-table td {
-  padding: 16px 20px;
+  padding: 12px 10px;
   text-align: center;
   border-bottom: 1px solid rgba(102, 126, 234, 0.1);
   white-space: nowrap;
