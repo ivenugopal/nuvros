@@ -26,8 +26,8 @@ const TrendAnalysis = ({
     endDate: filters?.endDate || '',
     brand: filters?.brand || '',
     platform: filters?.platform || [],
-    metric1: filters?.metric1 || 'GMV',
-    metric2: filters?.metric2 || 'Live Price',
+    metric1: filters?.metric1 || 'Live Price',
+    metric2: filters?.metric2 || 'Discount',
   }));
 
   // Available metrics for selection
@@ -35,8 +35,6 @@ const TrendAnalysis = ({
     { key: 'Live Price', label: 'Live Price' },
     { key: 'Sub-Category BSR', label: 'Sub-Category BSR' },
     { key: 'Category BSR', label: 'Category BSR' },
-    { key: 'GMV', label: 'GMV' },
-    { key: 'Units', label: 'Units' },
     { key: 'Discount', label: 'Discount' },
   ];
 

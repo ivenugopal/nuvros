@@ -27,9 +27,7 @@ const CorrelationMatrix = ({
     'EDD_Hygiene',
     'Sold By Validation',
     'Rating_Hygiene',
-    'Catalog_Hygiene',
-    'GMV',
-    'Units'
+    'Catalog_Hygiene'
   ], []);
 
   useEffect(() => {

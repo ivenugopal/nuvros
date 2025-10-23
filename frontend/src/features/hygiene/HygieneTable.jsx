@@ -54,8 +54,6 @@ const HygieneTable = () => {
     "Generic Title",
     "Category",
     "Sub-category",
-    "GMV",
-    "Units",
   ];
 
   const loadData = async () => {
