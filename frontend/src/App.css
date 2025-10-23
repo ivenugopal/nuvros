@@ -158,8 +158,8 @@
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
   margin-bottom: 0.75rem;
   position: relative;
-  flex-wrap: nowrap;
-  white-space: nowrap;
+  flex-wrap: wrap;
+  overflow: visible;
 }
 
 .date-filters::-webkit-scrollbar {
