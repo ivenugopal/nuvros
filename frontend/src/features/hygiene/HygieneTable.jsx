@@ -28,7 +28,7 @@ const HygieneTable = () => {
   });
   const [hygieneColumns, setHygieneColumns] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(20);
   const [totalRecords, setTotalRecords] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
 
