@@ -411,8 +411,8 @@ function App() {
   const [trendEndDate, setTrendEndDate] = useState(defaultMonthEnd);
   const [trendBrand, setTrendBrand] = useState('');
   const [trendPlatform, setTrendPlatform] = useState([]);
-  const [trendMetric1, setTrendMetric1] = useState('GMV');
-  const [trendMetric2, setTrendMetric2] = useState('Live Price');
+  const [trendMetric1, setTrendMetric1] = useState('Live Price');
+  const [trendMetric2, setTrendMetric2] = useState('Discount');
   const [trendOptions, setTrendOptions] = useState({ brands: [], platforms: [] });
 
   // Correlation Matrix state
@@ -1467,8 +1467,6 @@ function App() {
     }
   };
 
-
-
   const fetchTargetData = async () => {
     try {
       setTargetLoading(true);
@@ -1533,13 +1531,12 @@ function App() {
         const params = {
           year,
           month,
-          platform: selectedPlatformReport,
-          city: selectedPlatformReportCity,
-          supply_source: selectedPlatformReportSupplySource,
-          category: selectedPlatformReportCategory,
+          platform: Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0 ? selectedPlatformReport.join(',') : undefined,
+          city: Array.isArray(selectedPlatformReportCity) && selectedPlatformReportCity.length > 0 ? selectedPlatformReportCity.join(',') : undefined,
+          supply_source: Array.isArray(selectedPlatformReportSupplySource) && selectedPlatformReportSupplySource.length > 0 ? selectedPlatformReportSupplySource.join(',') : undefined,
           metric: selectedMetricReport,
-          manufacturing_city: selectedPlatformReportManufacturingCity,
-          brand: Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
+          manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined,
+          brand: Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
             ? selectedPlatformReportBrands.join(',') : undefined
         };
 
@@ -2754,54 +2751,48 @@ function App() {
                   if (Object.prototype.hasOwnProperty.call(next, 'city')) {
                     setSelectedPlatformReportCity(next.city);
                     // When city changes, clear dependent filters and fetch new options
-                    if (next.city !== selectedPlatformReportCity) {
-                      setSelectedPlatformReportSupplySource('');
-                      setSelectedPlatformReportManufacturingCity('');
-                      setSelectedPlatformReportCategory('');
-                      // Fetch new filter options based on selected city, platform and brands
-                      const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
-                        ? { brand: selectedPlatformReportBrands.join(',') } : {};
-                      fetchFilterOptionsForReport({ 
-                        platform: selectedPlatformReport, 
-                        city: next.city, 
-                        ...brandFilter 
-                      });
-                    }
+                    setSelectedPlatformReportSupplySource('');
+                    setSelectedPlatformReportManufacturingCity('');
+                    setSelectedPlatformReportCategory('');
+                    // Fetch new filter options based on selected city, platform and brands
+                    const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+                      ? { brand: selectedPlatformReportBrands.join(',') } : {};
+                    fetchFilterOptionsForReport({
+                      platform: selectedPlatformReport,
+                      city: next.city,
+                      ...brandFilter
+                    });
                   }
                   
                   if (Object.prototype.hasOwnProperty.call(next, 'supply_source')) {
                     setSelectedPlatformReportSupplySource(next.supply_source);
                     // When supply source changes, clear dependent filters and fetch new options
-                    if (next.supply_source !== selectedPlatformReportSupplySource) {
-                      setSelectedPlatformReportCity('');
-                      setSelectedPlatformReportCategory('');
-                      // Fetch new filter options based on selected supply source, platform and brands
-                      const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
-                        ? { brand: selectedPlatformReportBrands.join(',') } : {};
-                      fetchFilterOptionsForReport({ 
-                        platform: selectedPlatformReport, 
-                        supply_source: next.supply_source, 
-                        ...brandFilter 
-                      });
-                    }
+                    setSelectedPlatformReportCity('');
+                    setSelectedPlatformReportCategory('');
+                    // Fetch new filter options based on selected supply source, platform and brands
+                    const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+                      ? { brand: selectedPlatformReportBrands.join(',') } : {};
+                    fetchFilterOptionsForReport({
+                      platform: selectedPlatformReport,
+                      supply_source: next.supply_source,
+                      ...brandFilter
+                    });
                   }
                   
                   if (Object.prototype.hasOwnProperty.call(next, 'manufacturing_city')) {
                     setSelectedPlatformReportManufacturingCity(next.manufacturing_city);
                     // Manufacturing city affects category options
-                    if (next.manufacturing_city !== selectedPlatformReportManufacturingCity) {
-                      setSelectedPlatformReportCategory('');
-                      // Fetch new category options based on manufacturing city
-                      const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
-                        ? { brand: selectedPlatformReportBrands.join(',') } : {};
-                      fetchFilterOptionsForReport({ 
-                        platform: selectedPlatformReport, 
-                        city: selectedPlatformReportCity,
-                        supply_source: selectedPlatformReportSupplySource,
-                        manufacturing_city: next.manufacturing_city, 
-                        ...brandFilter 
-                      });
-                    }
+                    setSelectedPlatformReportCategory('');
+                    // Fetch new category options based on manufacturing city
+                    const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+                      ? { brand: selectedPlatformReportBrands.join(',') } : {};
+                    fetchFilterOptionsForReport({
+                      platform: selectedPlatformReport,
+                      city: selectedPlatformReportCity,
+                      supply_source: selectedPlatformReportSupplySource,
+                      manufacturing_city: next.manufacturing_city,
+                      ...brandFilter
+                    });
                   }
                   
                   if (Object.prototype.hasOwnProperty.call(next, 'category')) {
@@ -3123,3 +3114,4 @@ function App() {
 }
 
 export default App;
+
