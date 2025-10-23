@@ -5,7 +5,7 @@ import axios from 'axios';
 export const apiBaseURL = process.env.REACT_APP_API_BASE_URL || (
   window.location.hostname === 'localhost'
     ? 'http://localhost:8000/api/'
-    : 'https://nuvr.purpleblock.ai/api/'
+    : 'https://nuvr.tech/api/'
 );
 
 export const api = axios.create({

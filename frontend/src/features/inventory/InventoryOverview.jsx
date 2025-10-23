@@ -91,7 +91,7 @@ const InventoryOverview = ({
       )}
 
       {!loading && !error && (
-        <div className="table-container">
+        <div className="data-table">
           <div className="daily-report-table-wrapper">
             <table className="daily-report-table" style={tableStyle}>
               <thead>

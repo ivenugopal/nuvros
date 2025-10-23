@@ -268,7 +268,7 @@ const DailyReport = ({
       )}
 
       {!loading && !error && (
-        <div className={displayMode === 'table' ? 'table-container' : 'chart-container'}>
+        <div className={displayMode === 'table' ? 'table-data' : 'chart-container'}>
           {displayMode === 'table' ? (
             <div className="daily-report-table-wrapper">
               <h3 className="metric-title">Showing {metric?.toUpperCase()} Data by {identifierColumn}</h3>
