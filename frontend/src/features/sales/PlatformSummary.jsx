@@ -114,7 +114,7 @@ const PlatformSummary = ({
             <label htmlFor="platform-summary-category-filter">Category:</label>
             <MultiSelectDropdown id="platform-summary-category-filter" options={options.categories || []} values={filters.category || []} onChange={(vals) => onChangeFilters({ category: vals })} />
           </div>
-          <button onClick={onRefresh} className="refresh-btn">Refresh Data</button>
+          <button onClick={onRefresh} className="refresh-btn">APPLY</button>
           <button onClick={onDownload} className="btn-ghost" disabled={isDownloading}>{isDownloading ? 'Downloading...' : 'Download XLSX'}</button>
         </div>
       </div>

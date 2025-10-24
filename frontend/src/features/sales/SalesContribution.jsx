@@ -127,7 +127,7 @@ const SalesContribution = ({
             <label htmlFor="contrib-sub-category-filter">Sub-Category:</label>
             <MultiSelectDropdown id="contrib-sub-category-filter" options={options.sub_categories || []} values={filters.sub_category || []} onChange={(vals) => onChangeFilters({ sub_category: vals })} />
           </div>
-          <button onClick={onRefresh} className="refresh-btn">Refresh Data</button>
+          <button onClick={onRefresh} className="refresh-btn">APPLY</button>
           <button onClick={onDownload} className="btn-ghost" disabled={isDownloading}>{isDownloading ? 'Downloading...' : 'Download XLSX'}</button>
         </div>
       </div>

@@ -254,7 +254,7 @@ const DailyReport = ({
               <button className={`toggle-btn ${displayMode === 'graph' ? 'active' : ''}`} onClick={() => setDisplayMode('graph')}>Graph</button>
             </div>
           </div>
-          <button onClick={onRefresh} className="refresh-btn">Refresh Data</button>
+          <button onClick={onRefresh} className="refresh-btn">APPLY</button>
           <button onClick={onDownload} className="btn-ghost" disabled={isDownloading}>{isDownloading ? 'Downloading...' : 'Download XLSX'}</button>
         </div>
       </div>

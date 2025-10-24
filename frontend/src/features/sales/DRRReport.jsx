@@ -181,7 +181,7 @@ const DRRReport = ({
               onChange={(vals) => onChangeFilters({ brand: vals })}
             />
           </div>
-          <button onClick={onRefresh} className="refresh-btn">Refresh Data</button>
+          <button onClick={onRefresh} className="refresh-btn">APPLY</button>
           <div className="download-section">
             <button onClick={onDownload} className="btn-ghost" disabled={isDownloading}>
               {isDownloading ? 'Downloading...' : 'Download XLSX'}
