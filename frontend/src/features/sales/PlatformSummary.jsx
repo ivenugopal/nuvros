@@ -81,40 +81,164 @@ const PlatformSummary = ({
         <div className="date-filters">
           <div className="date-input-group">
             <label htmlFor="platform-summary-start-date">Start Date:</label>
-            <input id="platform-summary-start-date" type="date" value={filters.startDate} onChange={(e) => onChangeFilters({ startDate: e.target.value })} />
+            <input
+              id="platform-summary-start-date"
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => {
+                console.log('📅 USER ACTION: Start Date changed', {
+                  component: 'PlatformSummary',
+                  oldValue: filters.startDate,
+                  newValue: e.target.value,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ startDate: e.target.value });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-summary-end-date">End Date:</label>
-            <input id="platform-summary-end-date" type="date"
-            max={new Date().toISOString().split('T')[0]}
-            value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} />
+            <input
+              id="platform-summary-end-date"
+              type="date"
+              max={new Date().toISOString().split('T')[0]}
+              value={filters.endDate}
+              onChange={(e) => {
+                console.log('📅 USER ACTION: End Date changed', {
+                  component: 'PlatformSummary',
+                  oldValue: filters.endDate,
+                  newValue: e.target.value,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ endDate: e.target.value });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-summary-filter">Platform:</label>
-            <MultiSelectDropdown id="platform-summary-filter" options={options.platforms || []} values={filters.platform || []} onChange={(vals) => onChangeFilters({ platform: vals })} />
+            <MultiSelectDropdown
+              id="platform-summary-filter"
+              options={options.platforms || []}
+              values={filters.platform || []}
+              onChange={(vals) => {
+                console.log('🏢 USER ACTION: Platform changed', {
+                  component: 'PlatformSummary',
+                  oldValue: filters.platform,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ platform: vals });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-summary-city-filter">Sales City:</label>
-            <MultiSelectDropdown id="platform-summary-city-filter" options={options.cities || []} values={filters.city || []} onChange={(vals) => onChangeFilters({ city: vals })} />
+            <MultiSelectDropdown
+              id="platform-summary-city-filter"
+              options={options.cities || []}
+              values={filters.city || []}
+              onChange={(vals) => {
+                console.log('🏙️ USER ACTION: City changed', {
+                  component: 'PlatformSummary',
+                  oldValue: filters.city,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ city: vals });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-summary-supply-filter">PO/FC-DC:</label>
-            <MultiSelectDropdown id="platform-summary-supply-filter" options={options.supply_sources || []} values={filters.supply_source || []} onChange={(vals) => onChangeFilters({ supply_source: vals })} />
+            <MultiSelectDropdown
+              id="platform-summary-supply-filter"
+              options={options.supply_sources || []}
+              values={filters.supply_source || []}
+              onChange={(vals) => {
+                console.log('📦 USER ACTION: Supply Source changed', {
+                  component: 'PlatformSummary',
+                  oldValue: filters.supply_source,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ supply_source: vals });
+              }}
+            />
           </div>
           {/* Removed duplicate manufacture source (first one). Keep a single MultiSelect below. */}
           <div className="date-input-group">
             <label htmlFor="platform-summary-brand-filter">Brand:</label>
-            <MultiSelectDropdown id="platform-summary-brand-filter" options={options.brands || []} values={filters.brand || []} onChange={(vals) => onChangeFilters({ brand: vals })} />
+            <MultiSelectDropdown
+              id="platform-summary-brand-filter"
+              options={options.brands || []}
+              values={filters.brand || []}
+              onChange={(vals) => {
+                console.log('🏷️ USER ACTION: Brand changed', {
+                  component: 'PlatformSummary',
+                  oldValue: filters.brand,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ brand: vals });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-summary-manufacture-filter">Manufacture Source:</label>
-            <MultiSelectDropdown id="platform-summary-manufacture-filter" options={options.manufacturing_cities || []} values={filters.manufacturing_city || []} onChange={(vals) => onChangeFilters({ manufacturing_city: vals })} />
+            <MultiSelectDropdown
+              id="platform-summary-manufacture-filter"
+              options={options.manufacturing_cities || []}
+              values={filters.manufacturing_city || []}
+              onChange={(vals) => {
+                console.log('🏭 USER ACTION: Manufacturing City changed', {
+                  component: 'PlatformSummary',
+                  oldValue: filters.manufacturing_city,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ manufacturing_city: vals });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-summary-category-filter">Category:</label>
-            <MultiSelectDropdown id="platform-summary-category-filter" options={options.categories || []} values={filters.category || []} onChange={(vals) => onChangeFilters({ category: vals })} />
+            <MultiSelectDropdown
+              id="platform-summary-category-filter"
+              options={options.categories || []}
+              values={filters.category || []}
+              onChange={(vals) => {
+                console.log('📂 USER ACTION: Category changed', {
+                  component: 'PlatformSummary',
+                  oldValue: filters.category,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ category: vals });
+              }}
+            />
           </div>
-          <button onClick={onRefresh} className="refresh-btn">APPLY</button>
+          <button
+            onClick={() => {
+              console.log('🔘 USER ACTION: APPLY button clicked', {
+                component: 'PlatformSummary',
+                action: 'Manual API trigger',
+                filters: {
+                  startDate: filters.startDate,
+                  endDate: filters.endDate,
+                  platform: filters.platform,
+                  city: filters.city,
+                  supply_source: filters.supply_source,
+                  brand: filters.brand,
+                  manufacturing_city: filters.manufacturing_city,
+                  category: filters.category
+                }
+              });
+              onRefresh();
+            }}
+            className="refresh-btn"
+          >
+            APPLY
+          </button>
           <button onClick={onDownload} className="btn-ghost" disabled={isDownloading}>{isDownloading ? 'Downloading...' : 'Download XLSX'}</button>
         </div>
       </div>

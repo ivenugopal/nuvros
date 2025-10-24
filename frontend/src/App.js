@@ -586,19 +586,35 @@ function App() {
     }
   }, [authToken]); // Only authToken dependency - API called once on load
 
+  // Fetch DRR data only when tab changes or pagination changes
+  // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
     if (!authToken) return;
     if (activeTab === 'drr') {
+      console.log('🔥 API TRIGGER - DRR tab loaded or pagination changed:', {
+        trigger: 'DRRReport useEffect',
+        activeTab,
+        currentPage,
+        pageSize,
+        timestamp: new Date().toISOString()
+      });
       fetchDrrData();
     }
-  }, [activeTab, drrStartDate, drrEndDate, selectedDrrPlatforms, selectedDrrCities, selectedDrrSupplySources, selectedDrrManufacturingCities, selectedDrrCategories, selectedDrrSubCategories, selectedDrrBrands, currentPage, pageSize, authToken]);
+  }, [activeTab, currentPage, pageSize, authToken]); // Removed filter dependencies - only tab switch and pagination trigger API
 
+  // Fetch PlatformSummary data only when tab changes
+  // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
     if (!authToken) return;
     if (activeTab === 'platformSummary') {
+      console.log('🔥 API TRIGGER - PlatformSummary tab loaded:', {
+        trigger: 'PlatformSummary useEffect',
+        activeTab,
+        timestamp: new Date().toISOString()
+      });
       fetchPlatformSummaryData();
     }
-  }, [activeTab, platformSummaryStartDate, platformSummaryEndDate, selectedPlatformSummary, selectedPlatformSummaryCity, selectedPlatformSummarySupplySource, selectedPlatformSummaryCategory, selectedPlatformSummaryManufacturingCity, authToken, selectedPlatformSummaryBrands]);
+  }, [activeTab, authToken]); // Removed filter dependencies - only tab switch triggers API
 
   useEffect(() => {
     if (!authToken) return;
@@ -630,19 +646,27 @@ function App() {
     }
   }, [activeTab, correlationStartDate, correlationEndDate, correlationBrand, correlationPlatform, authToken]);
 
+  // Fetch SalesPerformance data only when tab or view changes
+  // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
     if (!authToken) return;
     if (activeTab === 'salesContribution') {
       fetchSalesContribution();
     }
     if (activeTab === 'platformReport') {
-        if (salesPerfView === 'target') {
-          fetchPlatformReportData();
-        } else if (salesPerfView === 'weekly') {
-          fetchWeeklyData();
-        } else if (salesPerfView === 'monthly') {
-          fetchMonthlyData();
-        }
+      console.log('🔥 API TRIGGER - SalesPerformance tab/view changed:', {
+        trigger: 'SalesPerformance useEffect',
+        activeTab,
+        salesPerfView,
+        timestamp: new Date().toISOString()
+      });
+      if (salesPerfView === 'target') {
+        fetchPlatformReportData();
+      } else if (salesPerfView === 'weekly') {
+        fetchWeeklyData();
+      } else if (salesPerfView === 'monthly') {
+        fetchMonthlyData();
+      }
       if (availablePlatformsReport.length === 0) {
         fetchPlatformsForReport();
       }
@@ -651,7 +675,7 @@ function App() {
         fetchFilterOptionsForReport();
       }
     }
-  }, [activeTab, platformReportMonthStart, platformReportMonthEnd, selectedPlatformReport, selectedPlatformReportCity, selectedPlatformReportSupplySource, selectedPlatformReportCategory, selectedMetricReport, selectedPlatformReportManufacturingCity, salesPerfView, authToken, selectedPlatformReportBrands]);
+  }, [activeTab, salesPerfView, authToken]); // Removed filter dependencies - only tab and view switch trigger API
 
   useEffect(() => {
     if (!authToken) return;
@@ -1600,6 +1624,22 @@ function App() {
 
   const fetchWeeklyData = async () => {
     try {
+      console.log('🌐 API CALL - fetchWeeklyData() called', {
+        endpoint: '/platform-sales-subcategory-drilldown/',
+        view: 'Weekly',
+        params: {
+          month_start: platformReportMonthStart,
+          month_end: platformReportMonthEnd,
+          platform: selectedPlatformReport,
+          city: selectedPlatformReportCity,
+          supply_source: selectedPlatformReportSupplySource,
+          category: selectedPlatformReportCategory,
+          metric: selectedMetricReport,
+          manufacturing_city: selectedPlatformReportManufacturingCity,
+          brand: selectedPlatformReportBrands
+        },
+        timestamp: new Date().toISOString()
+      });
       setWeeklyLoading(true);
       setWeeklyError(null);
       
@@ -1692,6 +1732,22 @@ function App() {
 
   const fetchMonthlyData = async () => {
     try {
+      console.log('🌐 API CALL - fetchMonthlyData() called', {
+        endpoint: '/platform-sales-subcategory-drilldown/',
+        view: 'Monthly',
+        params: {
+          month_start: platformReportMonthStart,
+          month_end: platformReportMonthEnd,
+          platform: selectedPlatformReport,
+          city: selectedPlatformReportCity,
+          supply_source: selectedPlatformReportSupplySource,
+          category: selectedPlatformReportCategory,
+          metric: selectedMetricReport,
+          manufacturing_city: selectedPlatformReportManufacturingCity,
+          brand: selectedPlatformReportBrands
+        },
+        timestamp: new Date().toISOString()
+      });
       setMonthlyLoading(true);
       setMonthlyError(null);
       
@@ -1963,6 +2019,20 @@ function App() {
 
   const fetchPlatformSummaryData = async () => {
     try {
+      console.log('🌐 API CALL - fetchPlatformSummaryData() called', {
+        endpoint: '/platform-sales-summary/',
+        params: {
+          start_date: platformSummaryStartDate,
+          end_date: platformSummaryEndDate,
+          platform: selectedPlatformSummary,
+          city: selectedPlatformSummaryCity,
+          supply_source: selectedPlatformSummarySupplySource,
+          category: selectedPlatformSummaryCategory,
+          manufacturing_city: selectedPlatformSummaryManufacturingCity,
+          brand: selectedPlatformSummaryBrands
+        },
+        timestamp: new Date().toISOString()
+      });
       setPlatformSummaryLoading(true);
       setPlatformSummaryError(null);
       const params = {};
@@ -2121,6 +2191,22 @@ function App() {
 
   const fetchPlatformReportData = async () => {
     try {
+      console.log('🌐 API CALL - fetchPlatformReportData() called', {
+        endpoint: '/platform-sales-subcategory-drilldown/',
+        view: 'Target',
+        params: {
+          month_start: platformReportMonthStart,
+          month_end: platformReportMonthEnd,
+          platform: selectedPlatformReport,
+          city: selectedPlatformReportCity,
+          supply_source: selectedPlatformReportSupplySource,
+          category: selectedPlatformReportCategory,
+          metric: selectedMetricReport,
+          manufacturing_city: selectedPlatformReportManufacturingCity,
+          brand: selectedPlatformReportBrands
+        },
+        timestamp: new Date().toISOString()
+      });
       setPlatformReportLoading(true);
       setPlatformReportError(null);
       const params = {};
@@ -2824,12 +2910,11 @@ function App() {
                     const changed = JSON.stringify(newBrands) !== JSON.stringify(selectedPlatformReportBrands || []);
                     setSelectedPlatformReportBrands(newBrands);
                     if (changed) {
-                      setSelectedPlatformReport('');
                       setSelectedPlatformReportCity('');
                       setSelectedPlatformReportSupplySource('');
                       setSelectedPlatformReportManufacturingCity('');
                       setSelectedPlatformReportCategory('');
-                      // Fetch new filter options based on selected brands
+                      // Fetch new filter options based on selected brands (for Category dropdown)
                       fetchFilterOptionsForReport({ brand: newBrands.join(',') });
                     }
                   }
@@ -2843,7 +2928,7 @@ function App() {
                       setSelectedPlatformReportManufacturingCity('');
                       setSelectedPlatformReportCategory('');
                       // Fetch new filter options based on selected platform and brands
-                      const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
+                      const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
                         ? { brand: selectedPlatformReportBrands.join(',') } : {};
                       fetchFilterOptionsForReport({ platform: next.platform, ...brandFilter });
                     }
@@ -2868,7 +2953,6 @@ function App() {
                   if (Object.prototype.hasOwnProperty.call(next, 'supply_source')) {
                     setSelectedPlatformReportSupplySource(next.supply_source);
                     // When supply source changes, clear dependent filters and fetch new options
-                    setSelectedPlatformReportCity('');
                     setSelectedPlatformReportCategory('');
                     // Fetch new filter options based on selected supply source, platform and brands
                     const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
@@ -2884,16 +2968,16 @@ function App() {
                     setSelectedPlatformReportManufacturingCity(next.manufacturing_city);
                     // Manufacturing city affects category options
                     setSelectedPlatformReportCategory('');
-                    // Fetch new category options based on manufacturing city
-                    const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
-                      ? { brand: selectedPlatformReportBrands.join(',') } : {};
-                    fetchFilterOptionsForReport({
-                      platform: selectedPlatformReport,
-                      city: selectedPlatformReportCity,
-                      supply_source: selectedPlatformReportSupplySource,
-                      manufacturing_city: next.manufacturing_city,
-                      ...brandFilter
-                    });
+                    // DISABLED: Don't fetch filter options on manufacturing city change - user must click APPLY
+                    // const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+                    //   ? { brand: selectedPlatformReportBrands.join(',') } : {};
+                    // fetchFilterOptionsForReport({
+                    //   platform: selectedPlatformReport,
+                    //   city: selectedPlatformReportCity,
+                    //   supply_source: selectedPlatformReportSupplySource,
+                    //   manufacturing_city: next.manufacturing_city,
+                    //   ...brandFilter
+                    // });
                   }
                   
                   if (Object.prototype.hasOwnProperty.call(next, 'category')) {

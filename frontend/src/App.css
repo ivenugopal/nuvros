@@ -177,8 +177,10 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  min-width: 160px;       /* keeps inputs consistent */
-  flex-shrink: 0;          /* ✅ prevents collapsing */
+  width: 165px;           /* fixed width to prevent shrinking */
+  min-width: 165px;       /* enforce minimum width */
+  flex: 0 0 165px;        /* don't grow or shrink - fixed at 165px */
+  flex-shrink: 0;         /* ✅ prevents collapsing */
 }
 
 .date-input-group label {
@@ -333,8 +335,9 @@
 /* Multi-select dropdown styles */
 .multi-select {
   position: relative;
-  min-width: 200px;
+  min-width: 150px;
   width: 100%;
+  flex: 1 1 auto; /* Allow it to grow within the parent */
 }
 
 .multi-select-trigger {
