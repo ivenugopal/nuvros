@@ -4954,6 +4954,16 @@ def get_hygiene_table_data(request):
             # Convert to list of dictionaries
             data = [dict(zip(columns, row)) for row in rows]
 
+            # Extract distinct Category and Sub-category values from the data
+            categories = sorted(set(
+                row.get('Category') for row in data
+                if row.get('Category') is not None
+            ))
+            subcategories = sorted(set(
+                row.get('Sub-category') for row in data
+                if row.get('Sub-category') is not None
+            ))
+
             # Optimize: Get brands and platforms in a single query instead of two separate queries
             cursor.execute('''
                 SELECT 
@@ -4975,7 +4985,9 @@ def get_hygiene_table_data(request):
                 'selected_columns': selected_columns,
                 'options': {
                     'brands': brands,
-                    'platforms': platforms
+                    'platforms': platforms,
+                    'categories': categories,
+                    'subcategories': subcategories
                 },
                 'cache_hit': False
             }
