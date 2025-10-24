@@ -114,7 +114,9 @@ const DRRReport = ({
           </div>
           <div className="date-input-group">
             <label htmlFor="drr-end-date">End Date:</label>
-            <input id="drr-end-date" type="date" value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} />
+            <input id="drr-end-date" type="date"
+            max={new Date().toISOString().split('T')[0]}
+            value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-filter">Platform:</label>
