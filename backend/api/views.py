@@ -4713,8 +4713,8 @@ def get_hygiene_table_data(request):
             'Activation_Hygiene': ['SNS Rule', 'Live SNS', 'SNS Validation', 'BXGY Rule', 'Live BXGY', 'BXGY Validation', 'Activation_Hygiene'],
             'Availability Hygiene': ['Availability', 'Availability_Hygiene'],
             'Deal Hygiene': ['Deal Tag', 'Deal_Hygiene'],
-            'EDD Hygiene': ['EDD_400013', 'EDD_600005', 'EDD_122102', 'EDD_700016', 'EDD_560068', 'EDD_Hygiene'],
-            'Sold By Validation': ['Sold By 1_400013', 'Sold By 1_600005', 'Sold By 1_122102', 'Sold By 1_700016', 'Sold By 1_560068', 'Sold By 2_400013', 'Sold By 2_600005', 'Sold By 2_122102', 'Sold By 2_700016', 'Sold By 2_560068', 'Sold By 3_400013', 'Sold By 3_600005', 'Sold By 3_122102', 'Sold By 3_700016', 'Sold By 3_560068', 'Sold By Validation'],
+            'EDD Hygiene': ['EDD_110011','EDD_560068', 'EDD_700016', 'EDD_Hygiene'],
+            'Sold By Validation': ['Sold By 1_700016', 'Sold By 1_560068', 'Sold By 2_700016', 'Sold By 2_560068', 'Sold By 3_700016', 'Sold By 3_560068', 'Sold By Validation'],
             'Rating Hygiene': ['3 Star Ratings', '2 Star Ratings', '1 Star Ratings', 'Total Ratings', 'Ratings', 'Rating_Hygiene'],
             'Catalog_Hygiene': ['Ratings', 'Sub-Category BSR', 'Category BSR', 'Number of Other Sellers', 'Title Length', 'Bullet Point Count', 'Videos Count', 'Images Count', 'A+', 'Catalog_Hygiene']
         }
