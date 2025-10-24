@@ -49,7 +49,7 @@ const OverallSummary = ({
     ];
 
     return (
-      <div className="table-container">
+      <div className="data-table">
         <table className="sales-summary-table">
           <thead>
             <tr>
@@ -98,7 +98,7 @@ const OverallSummary = ({
     const platformToActual = (Array.isArray(data) ? data : []).reduce((acc, item) => { acc[item.platform] = item; return acc; }, {});
 
     return (
-      <div className="table-container">
+      <div className="data-table">
         <table className="sales-summary-table">
           <thead>
             <tr>
@@ -183,7 +183,7 @@ const OverallSummary = ({
     const totalProjGMV = projections.reduce((sum, item) => sum + item.projGMV, 0);
     const totalProjUnits = projections.reduce((sum, p) => sum + p.projUnits, 0);
     return (
-      <div className="table-container">
+      <div className="data-table">
         <table className="sales-summary-table">
           <thead>
             <tr>

@@ -5,6 +5,7 @@ urlpatterns = [
     path('consolidated-data/', views.get_consolidated_data, name='consolidated_data'),
     path('sales-target-data/', views.get_sales_target_data, name='sales_target_data'),
     path('drr-report/', views.get_drr_report, name='drr_report'),
+    path('user-brands/', views.get_user_brands, name='user-brands'),
     path('platform-sales-summary/', views.get_platform_sales_summary, name='platform_sales_summary'),
     path('platform-sales-subcategory-drilldown/', views.get_platform_sales_subcategory_drilldown, name='platform_sales_subcategory_drilldown'),
     path('platform-sales-report/', views.get_platform_sales_report, name='platform_sales_report'),

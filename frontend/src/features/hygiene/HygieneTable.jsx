@@ -28,7 +28,7 @@ const HygieneTable = () => {
   });
   const [hygieneColumns, setHygieneColumns] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(20);
   const [totalRecords, setTotalRecords] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -54,15 +54,20 @@ const HygieneTable = () => {
     "Generic Title",
     "Category",
     "Sub-category",
-    "GMV",
-    "Units",
   ];
 
   const loadData = async () => {
     setLoading(true);
-    setError(null);
+    setError(null); // Clear any previous errors
+
     try {
       const response = await fetchHygieneTable(appliedFilters);
+
+      // Check if response was canceled (due to our debouncing mechanism)
+      if (response.canceled) {
+        return; // Don't update state if request was canceled
+      }
+
       if (response.success) {
         setTotalRecords(response.data.length);
         setOptions(response.options);
@@ -73,13 +78,17 @@ const HygieneTable = () => {
         const endIndex = startIndex + pageSize;
         const paginatedData = response.data.slice(startIndex, endIndex);
         setData(paginatedData);
+        // Only clear loading when we have success
+        setLoading(false);
       } else {
+        // Only set error after loading is complete
+        setLoading(false);
         setError(response.error || "Failed to load data");
       }
     } catch (err) {
-      setError("Failed to load data");
-    } finally {
+      // Only set error after loading is complete
       setLoading(false);
+      setError("Failed to load data");
     }
   };
 
@@ -95,8 +104,12 @@ const HygieneTable = () => {
   };
 
   const handleApplyFilters = () => {
-    setAppliedFilters({ ...localFilters });
-    setCurrentPage(1); // Reset to first page when filters change
+    // Use React's state update batching to prevent multiple API calls
+    // Wrap both state updates in a single function to be processed in the next render
+    React.startTransition(() => {
+      setAppliedFilters({ ...localFilters });
+      setCurrentPage(1); // Reset to first page when filters change
+    });
   };
 
   const onDownload = async () => {

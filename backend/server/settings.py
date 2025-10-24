@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "django-insecure-u&31*_ni!kr1jc77ck_-umj4dnsdn877-0$84yf$%_4i0$mmui"
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = ["*"]
 
@@ -88,7 +88,17 @@ DATABASES = {
     }
 }
 
-
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "unique-snowflake",
+        "OPTIONS": {
+            "MAX_ENTRIES": 2000,     # how many cache items (default=300)
+            "CULL_FREQUENCY": 3,     # evict 1/3 oldest items when full
+        },
+        "TIMEOUT": 600,              # 10 minutes default TTL
+    }
+}
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 

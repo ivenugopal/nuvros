@@ -464,7 +464,7 @@ const SalesPerformance = ({
       )}
 
       {view === 'target' && !loadingTarget && !errorTarget && (
-        <div className={displayMode === 'table' ? 'table-container' : 'chart-container'}>
+        <div className={displayMode === 'table' ? 'data-table' : 'chart-container'}>
           {displayMode === 'table' ? (
             <table className="platform-summary-table">
               <thead>
@@ -622,7 +622,7 @@ const SalesPerformance = ({
       )}
 
       {view === 'monthly' && !loadingMonthly && !errorMonthly && (
-        <div className={displayMode === 'table' ? 'table-container' : 'chart-container'}>
+        <div className={displayMode === 'table' ? 'data-table' : 'chart-container'}>
           {displayMode === 'table' ? (
             <table className="platform-summary-table">
               <thead>

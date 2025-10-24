@@ -12,36 +12,36 @@ export const modules = [
       { key: 'dailyReport', label: 'Daily Report' },
     ],
   },
-  {
-    key: 'inventory',
-    label: 'Inventory',
-    icon: '📦',
-    tabs: [
-      { key: 'inventory-overview', label: 'Inventory Overview' },
-      { key: 'stock-levels', label: 'Stock Levels' },
-      { key: 'inventory-movements', label: 'Inventory Movements' },
-    ],
-  },
-  {
-    key: 'po',
-    label: 'PO',
-    icon: '📋',
-    tabs: [
-      { key: 'po-overview', label: 'PO Overview' },
-      { key: 'po-tracking', label: 'PO Tracking' },
-      { key: 'po-analytics', label: 'PO Analytics' },
-    ],
-  },
-  {
-    key: 'ads',
-    label: 'Ads',
-    icon: '📢',
-    tabs: [
-      { key: 'ads-overview', label: 'Ads Overview' },
-      { key: 'campaign-performance', label: 'Category Spends' },
-      { key: 'ads-analytics', label: 'Ads Analytics' },
-    ],
-  },
+//  {
+//    key: 'inventory',
+//    label: 'Inventory',
+//    icon: '📦',
+//    tabs: [
+//      { key: 'inventory-overview', label: 'Inventory Overview' },
+//      { key: 'stock-levels', label: 'Stock Levels' },
+//      { key: 'inventory-movements', label: 'Inventory Movements' },
+//    ],
+//  },
+//  {
+//    key: 'po',
+//    label: 'PO',
+//    icon: '📋',
+//    tabs: [
+//      { key: 'po-overview', label: 'PO Overview' },
+//      { key: 'po-tracking', label: 'PO Tracking' },
+//      { key: 'po-analytics', label: 'PO Analytics' },
+//    ],
+//  },
+//  {
+//    key: 'ads',
+//    label: 'Ads',
+//    icon: '📢',
+//    tabs: [
+//      { key: 'ads-overview', label: 'Ads Overview' },
+//      { key: 'campaign-performance', label: 'Category Spends' },
+//      { key: 'ads-analytics', label: 'Ads Analytics' },
+//    ],
+//  },
   {
     key: 'hygiene',
     label: 'Hygiene',
@@ -51,8 +51,8 @@ export const modules = [
       { key: 'hygiene-table', label: 'Table View' },
       { key: 'trend-analysis', label: 'Trend Analysis' },
       { key: 'correlation-matrix', label: 'Correlation Matrix' },
-      { key: 'quality-metrics', label: 'Quality Metrics' },
-      { key: 'compliance-reports', label: 'Compliance Reports' },
+//      { key: 'quality-metrics', label: 'Quality Metrics' },
+//      { key: 'compliance-reports', label: 'Compliance Reports' },
     ],
   },
 ];

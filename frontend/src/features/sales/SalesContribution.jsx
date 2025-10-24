@@ -140,7 +140,7 @@ const SalesContribution = ({
 
       {!loading && !error && (
         <>
-          <div className="table-container">
+          <div className="data-table">
             <table className="platform-summary-table">
               <thead>
                 <tr>
