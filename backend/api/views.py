@@ -4761,7 +4761,7 @@ def get_hygiene_table_data(request):
             'Availability Hygiene': ['Availability', 'Availability_Hygiene'],
             'Deal Hygiene': ['Deal Tag', 'Deal_Hygiene'],
             'EDD Hygiene': ['EDD_110011','EDD_560068', 'EDD_700016', 'EDD_Hygiene'],
-            'Sold By Validation': ['Sold By 1_700016', 'Sold By 1_560068', 'Sold By 2_700016', 'Sold By 2_560068', 'Sold By 3_700016', 'Sold By 3_560068', 'Sold By Validation'],
+            'Sold By Validation': ['Sold By_110011', 'Sold By_560068', 'Sold By_700016', 'Sold By Validation'],
             'Rating Hygiene': ['3 Star Ratings', '2 Star Ratings', '1 Star Ratings', 'Total Ratings', 'Ratings', 'Rating_Hygiene'],
             'Catalog_Hygiene': ['Ratings', 'Sub-Category BSR', 'Category BSR', 'Number of Other Sellers', 'Title Length', 'Bullet Point Count', 'Videos Count', 'Images Count', 'A+', 'Catalog_Hygiene']
         }
