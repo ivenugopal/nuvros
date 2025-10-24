@@ -1439,7 +1439,7 @@ function App() {
       const response = await api.get('/user-brands/');
       if (response.data.success) {
         console.log('Consolidated data:', response.data.data);
-        setAvailableBrands(response.data.brands || []);
+        setAvailableBrands(response.data.brands.Sales || []);
       } else {
         console.error('Failed to fetch user brands:', response.data.error);
       }
