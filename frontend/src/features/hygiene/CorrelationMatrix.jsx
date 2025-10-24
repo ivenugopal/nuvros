@@ -46,16 +46,20 @@ const CorrelationMatrix = ({
   };
 
   const onApply = () => {
+    console.log('🔘 USER ACTION: APPLY button clicked', {
+      component: 'CorrelationMatrix',
+      action: 'Manual API trigger',
+      filters: localFilters
+    });
     onChangeFilters && onChangeFilters({ ...localFilters });
     onRefresh && onRefresh();
   };
 
-  // Apply filters immediately on change for seamless UX
-  useEffect(() => {
-    if (!onChangeFilters) return;
-    onChangeFilters({ ...localFilters });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.platform]);
+  // REMOVED: Auto-trigger on filter changes - users must click Apply button
+  // useEffect(() => {
+  //   if (!onChangeFilters) return;
+  //   onChangeFilters({ ...localFilters });
+  // }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.platform]);
 
   // Helper function to safely parse percentage values
   const parsePercentageValue = (value) => {
