@@ -4061,23 +4061,23 @@ def get_hygiene_overview(request):
                 # Convert YYYY-MM-DD to DD-MM-YYYY for database comparison
                 try:
                     start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
-                    start_date_formatted = start_date_obj.strftime('%d-%m-%Y')
-                    where_parts.append('"Date" >= %s')
+                    start_date_formatted = start_date_obj.strftime('%Y-%m-%d')
+                    where_parts.append('"date_cast" >= %s')
                     params.append(start_date_formatted)
                 except ValueError:
                     # If conversion fails, use original date
-                    where_parts.append('"Date" >= %s')
+                    where_parts.append('"date_cast" >= %s')
                     params.append(start_date)
             if end_date:
                 # Convert YYYY-MM-DD to DD-MM-YYYY for database comparison
                 try:
                     end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
-                    end_date_formatted = end_date_obj.strftime('%d-%m-%Y')
-                    where_parts.append('"Date" <= %s')
+                    end_date_formatted = end_date_obj.strftime('%Y-%m-%d')
+                    where_parts.append('"date_cast" <= %s')
                     params.append(end_date_formatted)
                 except ValueError:
                     # If conversion fails, use original date
-                    where_parts.append('"Date" <= %s')
+                    where_parts.append('"date_cast" <= %s')
                     params.append(end_date)
             if brand:
                 where_parts.append('"Brand" = %s')

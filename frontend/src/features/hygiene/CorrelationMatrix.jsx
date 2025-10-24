@@ -206,6 +206,7 @@ const CorrelationMatrix = ({
           End Date
           <input
             type="date"
+            max={new Date().toISOString().split('T')[0]}
             value={localFilters.endDate}
             onChange={(e) => onField('endDate', e.target.value)}
           />
