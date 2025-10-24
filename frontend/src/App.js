@@ -13,6 +13,7 @@ import Sidebar from './components/layout/Sidebar';
 import AuthCard from './components/auth/AuthCard';
 import ThemeToggle from './components/common/ThemeToggle';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { UserBrandsProvider, useUserBrands } from './contexts/UserBrandsContext';
 import OverallSummary from './features/sales/OverallSummary';
 import DRRReport from './features/sales/DRRReport';
 import PlatformSummary from './features/sales/PlatformSummary';
@@ -546,10 +547,20 @@ function App() {
   // Modules and helpers moved to constants
   
   const toggleModuleExpansion = (moduleKey) => {
-    setExpandedModules(prev => ({
-      ...prev,
-      [moduleKey]: !prev[moduleKey]
-    }));
+    setExpandedModules(prev => {
+      const newExpandedState = !prev[moduleKey];
+
+      // If expanding a module, fetch its specific brands
+      if (newExpandedState && authToken) {
+        console.log(`Module "${moduleKey}" expanded - fetching brands for this module`);
+        fetchUserBrands(moduleKey);
+      }
+
+      return {
+        ...prev,
+        [moduleKey]: newExpandedState
+      };
+    });
   };
 
   // Fetch user brands only once when authToken is available
@@ -1211,8 +1222,7 @@ function App() {
         setAvailableContribCategories(response.data.categories || []);
         setAvailableContribSubCategories(response.data.sub_categories || []);
         console.log("Current available brands:", availableBrands);
-        setAvailableBrands(response.data.brands || []);
-//        setAvailableBrands(availableBrands || []);
+//        setAvailableBrands(response.data.brands || []);
         setContribPagination(response.data.pagination || {});
       } else {
         setContribError(response.data.error || 'Failed to fetch');
@@ -1277,7 +1287,8 @@ function App() {
         const tableData = response.data.data || [];
         setDailyReportData(tableData);
         setAvailableDailyReportPlatforms(response.data.platforms || []);
-        const nextBrands = response.data.brands || [];
+//        const nextBrands = response.data.brands || [];
+        const nextBrands = JSON.parse(localStorage.userBrands).Sales || []; // Preserve existing brands
         const nextCities = response.data.cities || [];
         const nextSupply = response.data.supply_sources || [];
         const nextManu = response.data.manufacturing_cities || [];
@@ -1441,12 +1452,51 @@ function App() {
   const isAllPlatformsSelected = selectedContribPlatforms.length === 0 || selectedContribPlatforms.length === availableContribPlatforms.length;
   const filteredContribPlatforms = (availableContribPlatforms || []).filter(p => p && p.toLowerCase().includes(contribSearch.toLowerCase()));
 
-  const fetchUserBrands = async () => {
+  const fetchUserBrands = async (moduleKey = null) => {
     try {
       const response = await api.get('/user-brands/');
       if (response.data.success) {
-        console.log('Consolidated data:', response.data.data);
-        setAvailableBrands(response.data.brands.Sales || []);
+        const brands = response.data.brands;
+        console.log('User brands fetched for module:', moduleKey || activeModule, brands);
+
+        // Store in localStorage for global access
+        localStorage.setItem('userBrands', JSON.stringify(brands));
+
+        // Determine which module to update brands for
+        const targetModule = moduleKey || activeModule;
+
+        // Update brands based on the active/expanded module
+        switch(targetModule) {
+          case 'sales':
+            // Update all sales-related brand dropdowns
+            setAvailableBrands(brands.Sales || []);
+            break;
+
+          case 'hygiene':
+            // Update all hygiene-related brand dropdowns
+            setHygieneOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
+            setTrendOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
+            setCorrelationOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
+            break;
+
+          case 'ads':
+            // Update ads brands
+            setCatSpendOptions(prev => ({ ...prev, brands: brands.Ads || brands.Sales || [] }));
+            break;
+
+          case 'inventory':
+            // Update inventory brands when that module is implemented
+            // setInventoryOptions(prev => ({ ...prev, brands: brands.Inventory || brands.Sales || [] }));
+            break;
+
+          default:
+            // Default to sales brands for all modules
+            setAvailableBrands(brands.Sales || []);
+            setHygieneOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
+            setTrendOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
+            setCorrelationOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
+            setCatSpendOptions(prev => ({ ...prev, brands: brands.Ads || brands.Sales || [] }));
+        }
       } else {
         console.error('Failed to fetch user brands:', response.data.error);
       }
@@ -1871,7 +1921,7 @@ function App() {
         setAvailableManufacturingCities(response.data.manufacturing_cities || []);
         setAvailableCategories(response.data.categories || []);
         setAvailableSubCategories(response.data.sub_categories || []);
-        setAvailableBrands(response.data.brands || []);
+//        setAvailableBrands(response.data.brands || []);
         setPagination(response.data.pagination || {});
       } else {
         setDrrError(response.data.error);
@@ -1906,7 +1956,7 @@ function App() {
         setAvailablePlatformSummaryCities(response.data.cities || []);
         setAvailablePlatformSummarySupplySources(response.data.supply_sources || []);
         setAvailablePlatformSummaryCategories(response.data.categories || []);
-        setAvailableBrands(response.data.brands || []);
+//        setAvailableBrands(response.data.brands || []);
         setAvailablePlatformSummaryManufacturingCities(response.data.manufacturing_cities || []);
       } else {
         setPlatformSummaryError(response.data.error);
@@ -2078,7 +2128,7 @@ function App() {
           setAvailablePlatformReportCategories(response.data.categories);
         }
         if (Array.isArray(response.data.brands)) {
-          setAvailableBrands(response.data.brands);
+//          setAvailableBrands(response.data.brands);
         }
       } else {
         setPlatformReportError(response.data.error || 'Failed to fetch');
