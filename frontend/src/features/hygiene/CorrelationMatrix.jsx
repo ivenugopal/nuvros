@@ -222,8 +222,8 @@ const CorrelationMatrix = ({
             ))}
           </select>
         </label>
-        <div className="filter-group">
-          <label>Platform</label>
+        <label>
+          Platform
           <MultiSelectDropdown
             options={localOptions?.platforms || []}
             values={localFilters.platform || []}
@@ -231,7 +231,7 @@ const CorrelationMatrix = ({
             triggerPlaceholder="Select platforms..."
             selectAllLabel="All Platforms"
           />
-        </div>
+        </label>
         <button onClick={onApply} className="refresh-btn">Apply</button>
       </div>
     </div>

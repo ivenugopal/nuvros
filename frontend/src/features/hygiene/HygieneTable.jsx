@@ -37,6 +37,7 @@ const HygieneTable = () => {
   const [pageSize, setPageSize] = useState(20);
   const [totalRecords, setTotalRecords] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [brandsLoaded, setBrandsLoaded] = useState(false);
 
   const hygieneOptions = [
     "All",
@@ -68,15 +69,31 @@ const HygieneTable = () => {
       const userBrandsJson = localStorage.getItem('userBrands');
       if (userBrandsJson) {
         const userBrands = JSON.parse(userBrandsJson);
-        // Use Hygiene brands if available, otherwise fall back to Sales brands
-        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || [];
+        // Use Hygiene brands if available, otherwise fall back to Sales or ALL key
+        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || userBrands.ALL || [];
         setOptions(prev => ({
           ...prev,
           brands: hygieneBrands
         }));
+
+        // Set the first brand as default if brands are available
+        if (hygieneBrands && hygieneBrands.length > 0) {
+          const firstBrand = hygieneBrands[0];
+          setLocalFilters(prev => ({
+            ...prev,
+            brand: firstBrand
+          }));
+          setAppliedFilters(prev => ({
+            ...prev,
+            brand: firstBrand
+          }));
+        }
       }
+      // Mark brands as loaded
+      setBrandsLoaded(true);
     } catch (error) {
       console.error('Error loading brands from localStorage:', error);
+      setBrandsLoaded(true); // Still mark as loaded even on error
     }
   }, []);
 
@@ -123,8 +140,11 @@ const HygieneTable = () => {
   };
 
   useEffect(() => {
-    loadData();
-  }, [appliedFilters, currentPage, pageSize]);
+    // Only load data after brands have been initialized
+    if (brandsLoaded) {
+      loadData();
+    }
+  }, [appliedFilters, currentPage, pageSize, brandsLoaded]);
 
   const handleFilterChange = (key, value) => {
     setLocalFilters((prev) => ({
