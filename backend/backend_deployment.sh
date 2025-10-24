@@ -3,7 +3,7 @@
 # Backend Deployment Script for AWS ECS
 # This script builds, tags, and deploys the backend container to AWS ECR and ECS
 
-set -e  # Exit on any error
+set -e  # Exit on any errorgit
 
 echo "🔐 Logging into AWS ECR..."
 aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 179480500482.dkr.ecr.ap-south-1.amazonaws.com
