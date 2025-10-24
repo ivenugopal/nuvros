@@ -14,6 +14,8 @@ const HygieneTable = () => {
     brand: "",
     platform: [],
     hygiene: "All",
+    category: "",
+    subcategory: "",
   });
   const [localFilters, setLocalFilters] = useState({
     startDate: "",
@@ -21,10 +23,14 @@ const HygieneTable = () => {
     brand: "",
     platform: [],
     hygiene: "All",
+    category: "",
+    subcategory: "",
   });
   const [options, setOptions] = useState({
     brands: [],
     platforms: [],
+    categories: [],
+    subcategories: [],
   });
   const [hygieneColumns, setHygieneColumns] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -88,10 +94,12 @@ const HygieneTable = () => {
 
       if (response.success) {
         setTotalRecords(response.data.length);
-        // Only update platforms from API response, keep brands from localStorage
+        // Only update platforms, categories, and subcategories from API response, keep brands from localStorage
         setOptions(prev => ({
           ...prev,
-          platforms: response.options.platforms || []
+          platforms: response.options.platforms || [],
+          categories: response.options.categories || [],
+          subcategories: response.options.subcategories || []
         }));
         setHygieneColumns(response.hygiene_columns);
 
@@ -246,7 +254,7 @@ const HygieneTable = () => {
           />
         </div>
         <div className="filter-group">
-          <label>Category</label>
+          <label>Hygiene Type</label>
           <select
             value={localFilters.hygiene}
             onChange={(e) => handleFilterChange("hygiene", e.target.value)}
@@ -254,6 +262,34 @@ const HygieneTable = () => {
             {hygieneOptions.map((hygiene) => (
               <option key={hygiene} value={hygiene}>
                 {hygiene}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label>Category</label>
+          <select
+            value={localFilters.category}
+            onChange={(e) => handleFilterChange("category", e.target.value)}
+          >
+            <option value="">All Categories</option>
+            {options.categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label>Sub-category</label>
+          <select
+            value={localFilters.subcategory}
+            onChange={(e) => handleFilterChange("subcategory", e.target.value)}
+          >
+            <option value="">All Sub-categories</option>
+            {options.subcategories.map((subcategory) => (
+              <option key={subcategory} value={subcategory}>
+                {subcategory}
               </option>
             ))}
           </select>
