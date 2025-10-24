@@ -2595,6 +2595,7 @@ function App() {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('userBrands');
     setAuthToken('');
   };
 
