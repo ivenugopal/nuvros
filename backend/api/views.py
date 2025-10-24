@@ -4913,18 +4913,30 @@ def get_hygiene_table_data(request):
             existing_columns = cache.get(columns_cache_key)
 
             if existing_columns is None:
+                # Get actual column names from the table itself to preserve case
                 cursor.execute(
                     """
-                    SELECT column_name
-                    FROM information_schema.columns
-                    WHERE table_schema = 'public' AND table_name = 'ecom_consolidated'
+                    SELECT * FROM public.ecom_consolidated LIMIT 0
                     """
                 )
-                existing_columns = set(row[0] for row in cursor.fetchall())
+                existing_columns = set(col[0] for col in cursor.description)
                 # Cache for 1 hour (table structure doesn't change frequently)
                 cache.set(columns_cache_key, existing_columns, 3600)
+                logger.info(f"Hygiene Table - Cached columns: {existing_columns}")
 
+            # Filter out columns that don't exist in the table
+            original_columns = selected_columns.copy()
             selected_columns = [col for col in selected_columns if col in existing_columns]
+
+            # Log which columns were filtered out for debugging
+            filtered_out = set(original_columns) - set(selected_columns)
+            if filtered_out:
+                logger.warning(f"Hygiene Table - Filtered out non-existent columns: {filtered_out}")
+                logger.info(f"Hygiene Table - Available columns in DB: {existing_columns}")
+
+            if 'Category' not in selected_columns and 'Category' in original_columns:
+                logger.error(f"Hygiene Table - Category column was filtered out! Check if column exists in DB.")
+                logger.error(f"Hygiene Table - 'Category' in existing_columns: {'Category' in existing_columns}")
 
             # Build dynamic query
             columns_sql = ', '.join(f'"{col}"' for col in selected_columns)
