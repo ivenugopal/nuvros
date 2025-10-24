@@ -24,19 +24,56 @@ logger = logging.getLogger(__name__)
 @require_auth
 def get_user_brands(request):
     """
-    Fetch allowed brands for the authenticated user.
+    API: Fetch allowed brands for the authenticated user.
+    - Returns module-wise allowed brands for the current user.
+    - If user has "ALL" or empty config, returns all brands for each module.
     """
     try:
-        username = request.current_user.full_name
-        brands = get_allowed_brands_for_user(username)
-        if brands and brands[0].upper() == 'ALL' or not brands:
+        username = getattr(request.current_user, "full_name", None)
+        if not username:
+            return Response(
+                {"success": False, "error": "Invalid or missing user context."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 🔹 Get allowed brands per module
+        module_brands = get_allowed_brands_for_user(username)
+
+        # 🔹 If user has no restrictions, fetch all brands once
+        if not module_brands:
             with connection.cursor() as c:
-                c.execute(
-                    "SELECT DISTINCT brand FROM public.sales_master_consolidated_final_test WHERE brand IS NOT NULL ORDER BY brand")
-                brands = [r[0] for r in c.fetchall()]
-        return Response({"success": True, "brands": brands}, status=status.HTTP_200_OK)
+                c.execute("""
+                    SELECT DISTINCT brand 
+                    FROM public.sales_master_consolidated_final_test
+                    WHERE brand IS NOT NULL
+                    ORDER BY brand
+                """)
+                all_brands = [r[0] for r in c.fetchall()]
+            return Response(
+                {"success": True, "brands": {"ALL": all_brands}},
+                status=status.HTTP_200_OK
+            )
+
+        # 🔹 Ensure no empty brand lists
+        for module, brands in module_brands.items():
+            if not brands:
+                with connection.cursor() as c:
+                    c.execute("""
+                        SELECT DISTINCT brand 
+                        FROM public.sales_master_consolidated_final_test
+                        WHERE brand IS NOT NULL
+                        ORDER BY brand
+                    """)
+                    all_brands = [r[0] for r in c.fetchall()]
+                module_brands[module] = all_brands
+
+        return Response({"success": True, "brands": module_brands}, status=status.HTTP_200_OK)
+
     except Exception as e:
-        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response(
+            {"success": False, "error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
 
 @api_view(['GET'])
 @require_auth
