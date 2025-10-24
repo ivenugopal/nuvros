@@ -202,7 +202,9 @@ const DailyReport = ({
           </div>
           <div className="date-input-group">
             <label htmlFor="daily-report-end-date">End Date:</label>
-            <input id="daily-report-end-date" type="date" value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} required />
+            <input id="daily-report-end-date" type="date"
+            max={new Date().toISOString().split('T')[0]}
+            value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} required />
           </div>
           <div className="date-input-group">
             <label htmlFor="daily-report-platform">Platform:</label>

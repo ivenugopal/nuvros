@@ -260,7 +260,7 @@ function App() {
   const [dailyReportLoading, setDailyReportLoading] = useState(false);
   const [dailyReportError, setDailyReportError] = useState(null);
   const [dailyReportStartDate, setDailyReportStartDate] = useState(defaultMonthStart);
-  const [dailyReportEndDate, setDailyReportEndDate] = useState(defaultMonthEnd);
+  const [dailyReportEndDate, setDailyReportEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedDailyReportPlatform, setSelectedDailyReportPlatform] = useState('');
   const [selectedDailyReportBrands, setSelectedDailyReportBrands] = useState([]);
   const [selectedDailyReportCities, setSelectedDailyReportCities] = useState([]);
