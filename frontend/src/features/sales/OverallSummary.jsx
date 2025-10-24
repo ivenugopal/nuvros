@@ -243,7 +243,8 @@ const OverallSummary = ({
             <input 
               id="end-date" 
               type="date" 
-              value={endDate} 
+              value={endDate}
+              max={new Date().toISOString().split('T')[0]}
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>

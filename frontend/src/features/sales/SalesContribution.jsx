@@ -95,7 +95,9 @@ const SalesContribution = ({
           </div>
           <div className="date-input-group">
             <label htmlFor="contrib-end-date">End Date:</label>
-            <input id="contrib-end-date" type="date" value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} />
+            <input id="contrib-end-date" type="date"
+            max={new Date().toISOString().split('T')[0]}
+            value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} />
           </div>
           <div className="date-input-group">
             <label htmlFor="contrib-platform-filter">Platform:</label>

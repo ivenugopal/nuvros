@@ -136,14 +136,14 @@ function App() {
   const [expandedModules, setExpandedModules] = useState({ sales: true }); // Track which modules are expanded
   const { start: defaultMonthStart, end: defaultMonthEnd } = getCurrentMonthStartEnd();
   const [startDate, setStartDate] = useState(defaultMonthStart);
-  const [endDate, setEndDate] = useState(defaultMonthEnd);
-  
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]); // Use current date instead of month end
+
   // DRR Report state
   const [drrData, setDrrData] = useState([]);
   const [drrLoading, setDrrLoading] = useState(false);
   const [drrError, setDrrError] = useState(null);
   const [drrStartDate, setDrrStartDate] = useState(defaultMonthStart);
-  const [drrEndDate, setDrrEndDate] = useState(defaultMonthEnd);
+  const [drrEndDate, setDrrEndDate] = useState(new Date().toISOString().split('T')[0]); // Use current date instead of month end
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [availablePlatforms, setAvailablePlatforms] = useState([]);
   const [selectedCity, setSelectedCity] = useState('');
@@ -171,7 +171,7 @@ function App() {
   const [platformSummaryLoading, setPlatformSummaryLoading] = useState(false);
   const [platformSummaryError, setPlatformSummaryError] = useState(null);
   const [platformSummaryStartDate, setPlatformSummaryStartDate] = useState(defaultMonthStart);
-  const [platformSummaryEndDate, setPlatformSummaryEndDate] = useState(defaultMonthEnd);
+  const [platformSummaryEndDate, setPlatformSummaryEndDate] = useState(new Date().toISOString().split('T')[0]); // Use current date instead of month end
   const [selectedPlatformSummary, setSelectedPlatformSummary] = useState('');
   const [selectedPlatformSummaryCity, setSelectedPlatformSummaryCity] = useState('');
   const [selectedPlatformSummarySupplySource, setSelectedPlatformSummarySupplySource] = useState('');
@@ -224,7 +224,7 @@ function App() {
   const [contribLoading, setContribLoading] = useState(false);
   const [contribError, setContribError] = useState(null);
   const [contribStartDate, setContribStartDate] = useState(defaultMonthStart);
-  const [contribEndDate, setContribEndDate] = useState(defaultMonthEnd);
+  const [contribEndDate, setContribEndDate] = useState(new Date().toISOString().split('T')[0]); // Use current date instead of month end
   const [selectedContribPlatforms, setSelectedContribPlatforms] = useState([]); // multi-select
   const [selectedContribCity, setSelectedContribCity] = useState([]); // multi-select
   const [selectedContribSupplySource, setSelectedContribSupplySource] = useState([]); // multi-select
@@ -398,7 +398,7 @@ function App() {
   const [hygieneLoading, setHygieneLoading] = useState(false);
   const [hygieneError, setHygieneError] = useState(null);
   const [hygieneStartDate, setHygieneStartDate] = useState(defaultMonthStart);
-  const [hygieneEndDate, setHygieneEndDate] = useState(defaultMonthEnd);
+  const [hygieneEndDate, setHygieneEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [hygieneBrand, setHygieneBrand] = useState('');
   const [hygienePlatform, setHygienePlatform] = useState([]);
   const [hygieneOptions, setHygieneOptions] = useState({ brands: [], platforms: [] });
