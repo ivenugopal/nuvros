@@ -1516,28 +1516,20 @@ function App() {
           case 'sales':
             // Update all sales-related brand dropdowns
             const salesBrands = brands.Sales || brands.ALL || [];
+            console.log('🔍 Sales brands array:', salesBrands);
+            console.log('🔍 First brand (salesBrands[0]):', salesBrands[0]);
+            console.log('🔍 Current selectedBrand before setting:', selectedBrand);
             setAvailableBrands(salesBrands);
-            // Set first brand as default if not already set
-            if (salesBrands.length > 0 && !selectedBrand) {
-              setSelectedBrand(salesBrands[0]);
-            }
-            // Set first brand for all sales module filters if not already set
+            // Always set first brand from the sorted array
             if (salesBrands.length > 0) {
-              if (selectedDrrBrands.length === 0) {
-                setSelectedDrrBrands([salesBrands[0]]);
-              }
-              if (selectedPlatformSummaryBrands.length === 0) {
-                setSelectedPlatformSummaryBrands([salesBrands[0]]);
-              }
-              if (selectedPlatformReportBrands.length === 0) {
-                setSelectedPlatformReportBrands([salesBrands[0]]);
-              }
-              if (selectedContribBrands.length === 0) {
-                setSelectedContribBrands([salesBrands[0]]);
-              }
-              if (selectedDailyReportBrands.length === 0) {
-                setSelectedDailyReportBrands([salesBrands[0]]);
-              }
+              console.log('✅ Setting selectedBrand to:', salesBrands[0]);
+              setSelectedBrand(salesBrands[0]);
+              // Set first brand for all sales module filters
+              setSelectedDrrBrands([salesBrands[0]]);
+              setSelectedPlatformSummaryBrands([salesBrands[0]]);
+              setSelectedPlatformReportBrands([salesBrands[0]]);
+              setSelectedContribBrands([salesBrands[0]]);
+              setSelectedDailyReportBrands([salesBrands[0]]);
             }
             setBrandsInitialized(true);
             break;
@@ -1562,28 +1554,20 @@ function App() {
           default:
             // Default to sales brands for all modules
             const defaultBrands = brands.Sales || brands.ALL || [];
+            console.log('🔍 Default brands array:', defaultBrands);
+            console.log('🔍 First brand (defaultBrands[0]):', defaultBrands[0]);
+            console.log('🔍 Current selectedBrand before setting:', selectedBrand);
             setAvailableBrands(defaultBrands);
-            // Set first brand as default if not already set
-            if (defaultBrands.length > 0 && !selectedBrand) {
-              setSelectedBrand(defaultBrands[0]);
-            }
-            // Set first brand for all sales module filters if not already set
+            // Always set first brand from the sorted array
             if (defaultBrands.length > 0) {
-              if (selectedDrrBrands.length === 0) {
-                setSelectedDrrBrands([defaultBrands[0]]);
-              }
-              if (selectedPlatformSummaryBrands.length === 0) {
-                setSelectedPlatformSummaryBrands([defaultBrands[0]]);
-              }
-              if (selectedPlatformReportBrands.length === 0) {
-                setSelectedPlatformReportBrands([defaultBrands[0]]);
-              }
-              if (selectedContribBrands.length === 0) {
-                setSelectedContribBrands([defaultBrands[0]]);
-              }
-              if (selectedDailyReportBrands.length === 0) {
-                setSelectedDailyReportBrands([defaultBrands[0]]);
-              }
+              console.log('✅ Setting selectedBrand to:', defaultBrands[0]);
+              setSelectedBrand(defaultBrands[0]);
+              // Set first brand for all sales module filters
+              setSelectedDrrBrands([defaultBrands[0]]);
+              setSelectedPlatformSummaryBrands([defaultBrands[0]]);
+              setSelectedPlatformReportBrands([defaultBrands[0]]);
+              setSelectedContribBrands([defaultBrands[0]]);
+              setSelectedDailyReportBrands([defaultBrands[0]]);
             }
             setBrandsInitialized(true);
             setHygieneOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));

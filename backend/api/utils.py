@@ -61,14 +61,15 @@ def get_allowed_brands_for_user(username: str):
     all_brands = get_all_brands_from_db()
     expanded_mapping = {}
 
-    # 🔹 Step 4: Expand "ALL" per module
+    # 🔹 Step 4: Expand "ALL" per module and sort alphabetically
     for module, brands in (mapping or {}).items():
         if not isinstance(brands, list):
             continue
         if any(str(b).upper() == "ALL" for b in brands):
-            expanded_mapping[module] = all_brands.copy()
+            expanded_mapping[module] = all_brands.copy()  # already sorted from get_all_brands_from_db
         else:
-            expanded_mapping[module] = [b.strip() for b in brands if b and b.strip()]
+            # Sort user-specific brands alphabetically
+            expanded_mapping[module] = sorted([b.strip() for b in brands if b and b.strip()])
 
     return expanded_mapping
 
