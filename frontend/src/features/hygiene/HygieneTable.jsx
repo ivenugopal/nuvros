@@ -56,6 +56,24 @@ const HygieneTable = () => {
     "Sub-category",
   ];
 
+  // Load brands from localStorage on component mount
+  useEffect(() => {
+    try {
+      const userBrandsJson = localStorage.getItem('userBrands');
+      if (userBrandsJson) {
+        const userBrands = JSON.parse(userBrandsJson);
+        // Use Hygiene brands if available, otherwise fall back to Sales brands
+        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || [];
+        setOptions(prev => ({
+          ...prev,
+          brands: hygieneBrands
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading brands from localStorage:', error);
+    }
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     setError(null); // Clear any previous errors
@@ -70,7 +88,11 @@ const HygieneTable = () => {
 
       if (response.success) {
         setTotalRecords(response.data.length);
-        setOptions(response.options);
+        // Only update platforms from API response, keep brands from localStorage
+        setOptions(prev => ({
+          ...prev,
+          platforms: response.options.platforms || []
+        }));
         setHygieneColumns(response.hygiene_columns);
 
         // Apply pagination to the data

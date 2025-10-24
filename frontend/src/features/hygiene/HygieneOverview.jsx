@@ -18,6 +18,34 @@ const HygieneOverview = ({
     platform: filters?.platform || [],
   }));
 
+  // Load brands from localStorage on component mount (Hygiene module)
+  const [localOptions, setLocalOptions] = useState(options || {});
+
+  useEffect(() => {
+    try {
+      const userBrandsJson = localStorage.getItem('userBrands');
+      if (userBrandsJson) {
+        const userBrands = JSON.parse(userBrandsJson);
+        // Use Hygiene brands if available, otherwise fall back to Sales brands
+        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || [];
+        setLocalOptions(prev => ({
+          ...prev,
+          brands: hygieneBrands
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading brands from localStorage:', error);
+    }
+  }, []);
+
+  // Update local options when props change (but don't override brands)
+  useEffect(() => {
+    setLocalOptions(prev => ({
+      ...prev,
+      platforms: options?.platforms || prev.platforms || []
+    }));
+  }, [options]);
+
   useEffect(() => {
     setLocalFilters((prev) => ({
       ...prev,
@@ -34,16 +62,20 @@ const HygieneOverview = ({
   };
 
   const onApply = () => {
+    console.log('🔘 USER ACTION: APPLY button clicked', {
+      component: 'HygieneOverview',
+      action: 'Manual API trigger',
+      filters: localFilters
+    });
     onChangeFilters && onChangeFilters({ ...localFilters });
     onRefresh && onRefresh();
   };
 
-  // Apply filters immediately on change for seamless UX
-  useEffect(() => {
-    if (!onChangeFilters) return;
-    onChangeFilters({ ...localFilters });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.platform]);
+  // REMOVED: Auto-trigger on filter changes - users must click Apply button
+  // useEffect(() => {
+  //   if (!onChangeFilters) return;
+  //   onChangeFilters({ ...localFilters });
+  // }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.platform]);
 
 
   const renderStatCards = () => (
@@ -202,7 +234,7 @@ const HygieneOverview = ({
             onChange={(e) => onField('brand', e.target.value)}
           >
             <option value="">All Brands</option>
-            {(options?.brands || []).map((b) => (
+            {(localOptions?.brands || []).map((b) => (
               <option key={b} value={b}>{b}</option>
             ))}
           </select>
@@ -210,7 +242,7 @@ const HygieneOverview = ({
         <div className="filter-group">
           <label>Platform</label>
           <MultiSelectDropdown
-            options={options?.platforms || []}
+            options={localOptions?.platforms || []}
             values={localFilters.platform || []}
             onChange={(vals) => onField('platform', vals)}
             triggerPlaceholder="Select platforms..."
