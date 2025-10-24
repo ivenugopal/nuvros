@@ -165,15 +165,15 @@ const TrendAnalysis = ({
             ))}
           </select>
         </label>
-        <div className="filter-group">
-          <label>Platform</label>
+        <label>
+          Platform
           <SingleSelectDropdown
             options={localOptions?.platforms || []}
             value={localFilters.platform[0] || ''}
             onChange={(val) => onField('platform', val ? [val] : [])}
             triggerPlaceholder="Select platform..."
           />
-        </div>
+        </label>
         <label>
           Metric 1 (Y-Axis 1)
           <select

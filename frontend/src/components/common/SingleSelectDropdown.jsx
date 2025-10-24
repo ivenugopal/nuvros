@@ -4,15 +4,16 @@ import { createPortal } from 'react-dom';
 const menuBaseStyle = {
   position: 'fixed',
   zIndex: 9999,
-  background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 255, 0.98) 100%)',
-  border: '1px solid rgba(102, 126, 234, 0.2)',
+  background: 'var(--dropdown-bg, linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 255, 0.98) 100%))',
+  border: '1px solid var(--border-color, rgba(102, 126, 234, 0.2))',
   borderRadius: '12px',
   boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)',
   maxHeight: '320px',
   overflow: 'auto',
   padding: '12px',
   fontSize: '13.5px',
-  backdropFilter: 'blur(8px)'
+  backdropFilter: 'blur(8px)',
+  color: 'var(--text-color, #333)'
 };
 
 const triggerStyle = {
@@ -43,9 +44,9 @@ const searchStyle = {
   padding: '8px 12px',
   marginBottom: '8px',
   borderRadius: '8px',
-  border: '1px solid rgba(102, 126, 234, 0.3)',
-  background: 'rgba(255, 255, 255, 0.9)',
-  color: '#495057'
+  border: '1px solid var(--border-color, rgba(102, 126, 234, 0.3))',
+  background: 'var(--input-bg, rgba(255, 255, 255, 0.9))',
+  color: 'var(--text-color, #495057)'
 };
 
 const listItemStyle = {
@@ -54,7 +55,9 @@ const listItemStyle = {
   gap: '10px',
   padding: '6px 8px',
   cursor: 'pointer',
-  lineHeight: 1.6
+  lineHeight: 1.6,
+  borderRadius: '6px',
+  transition: 'background-color 0.2s ease'
 };
 
 export default function SingleSelectDropdown({
@@ -169,12 +172,18 @@ export default function SingleSelectDropdown({
         >
           <input style={searchStyle} type="text" placeholder="Search..." value={query} onChange={(e) => setQuery(e.target.value)} />
           {filtered.map((opt) => (
-            <div key={opt} style={listItemStyle} onClick={() => selectValue(opt)}>
+            <div
+              key={opt}
+              style={listItemStyle}
+              onClick={() => selectValue(opt)}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--hover-bg, rgba(102, 126, 234, 0.1))'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
               <span>{opt}</span>
             </div>
           ))}
           {filtered.length === 0 && (
-            <div style={{ padding: 8, color: '#777' }}>No options</div>
+            <div style={{ padding: 8, color: 'var(--text-secondary, #777)' }}>No options</div>
           )}
         </div>
       ), document.body)}

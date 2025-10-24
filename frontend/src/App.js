@@ -422,7 +422,7 @@ function App() {
   const [correlationLoading, setCorrelationLoading] = useState(false);
   const [correlationError, setCorrelationError] = useState(null);
   const [correlationStartDate, setCorrelationStartDate] = useState(defaultMonthStart);
-  const [correlationEndDate, setCorrelationEndDate] = useState(defaultMonthEnd);
+  const [correlationEndDate, setCorrelationEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [correlationBrand, setCorrelationBrand] = useState('');
   const [correlationPlatform, setCorrelationPlatform] = useState([]);
   const [correlationOptions, setCorrelationOptions] = useState({ brands: [], platforms: [] });
