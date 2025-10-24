@@ -570,13 +570,21 @@ function App() {
     }
   }, [authToken]);
 
-  // Fetch data when filters change
+  // Fetch data only once on load when authToken is available
+  // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
     if (authToken) {
+      console.log('🔥 API TRIGGER - Initial load only:', {
+        trigger: 'OverallSummary useEffect (load only)',
+        startDate,
+        endDate,
+        selectedBrand,
+        timestamp: new Date().toISOString()
+      });
       fetchData();
       fetchTargetData();
     }
-  }, [startDate, endDate, authToken, selectedBrand]);
+  }, [authToken]); // Only authToken dependency - API called once on load
 
   useEffect(() => {
     if (!authToken) return;
@@ -1508,6 +1516,15 @@ function App() {
 
   const fetchData = async () => {
     try {
+      console.log('🌐 API CALL - fetchData() called', {
+        endpoint: '/consolidated-data/',
+        params: {
+          start_date: startDate,
+          end_date: endDate,
+          brand: selectedBrand
+        },
+        timestamp: new Date().toISOString()
+      });
       setLoading(true);
       setError(null); // Clear any previous errors
       const params = {};
@@ -1544,6 +1561,15 @@ function App() {
 
   const fetchTargetData = async () => {
     try {
+      console.log('🌐 API CALL - fetchTargetData() called', {
+        endpoint: '/sales-target-data/',
+        params: {
+          start_date: startDate,
+          end_date: endDate,
+          brand: selectedBrand
+        },
+        timestamp: new Date().toISOString()
+      });
       setTargetLoading(true);
       setTargetError(null); // Clear any previous errors
       const params = {};

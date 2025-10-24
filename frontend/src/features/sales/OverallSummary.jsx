@@ -235,7 +235,15 @@ const OverallSummary = ({
               id="start-date" 
               type="date" 
               value={startDate} 
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => {
+                console.log('📅 USER ACTION: Start Date changed', {
+                  component: 'OverallSummary',
+                  oldValue: startDate,
+                  newValue: e.target.value,
+                  willTriggerAPI: true
+                });
+                setStartDate(e.target.value);
+              }}
             />
           </div>
           <div className="date-input-group">
@@ -245,18 +253,51 @@ const OverallSummary = ({
               type="date" 
               value={endDate}
               max={new Date().toISOString().split('T')[0]}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => {
+                console.log('📅 USER ACTION: End Date changed', {
+                  component: 'OverallSummary',
+                  oldValue: endDate,
+                  newValue: e.target.value,
+                  willTriggerAPI: true
+                });
+                setEndDate(e.target.value);
+              }}
             />
           </div>
           <div className="date-input-group">
             <label htmlFor="brand-filter">Brand:</label>
-            <select id="brand-filter" value={selectedBrand} onChange={(e) => setSelectedBrand(e.target.value)} className="platform-select">
+            <select
+              id="brand-filter"
+              value={selectedBrand}
+              onChange={(e) => {
+                console.log('🏷️ USER ACTION: Brand changed', {
+                  component: 'OverallSummary',
+                  oldValue: selectedBrand,
+                  newValue: e.target.value,
+                  willTriggerAPI: true
+                });
+                setSelectedBrand(e.target.value);
+              }}
+              className="platform-select"
+            >
               {(availableBrands || []).map((brand) => (
                 <option key={brand} value={brand}>{brand}</option>
               ))}
             </select>
           </div>
-          <button onClick={onRefresh} className="refresh-btn">APPLY</button>
+          <button
+            onClick={() => {
+              console.log('🔘 USER ACTION: APPLY button clicked', {
+                component: 'OverallSummary',
+                action: 'Manual API trigger',
+                filters: { startDate, endDate, selectedBrand }
+              });
+              onRefresh();
+            }}
+            className="refresh-btn"
+          >
+            APPLY
+          </button>
           <button onClick={onDownload} className="btn-ghost" disabled={isDownloading}>
             {isDownloading ? 'Downloading...' : 'Download XLSX'}
           </button>
