@@ -4669,203 +4669,276 @@ def calculate_correlation_from_data(data, correlation_columns):
 @require_auth
 def get_hygiene_table_data(request):
     """
-    Optimized Hygiene Table View:
-    - Uses efficient column selection
-    - Handles both YYYY-MM-DD and DD-MM-YYYY text dates
-    - Prevents redundant DB hits
-    - Caches results for repeated requests
+    Hygiene Table View data sourced from public.ecom_consolidated table.
+    Optimized with intelligent caching mechanism.
+
+    Returns detailed hygiene data with hygiene-specific columns based on selected hygiene type.
+
+    Query params:
+    - start_date: YYYY-MM-DD (optional)
+    - end_date: YYYY-MM-DD (optional)
+    - brand: optional brand filter
+    - platform: optional platform filter (comma-separated for multiple)
+    - hygiene: optional hygiene filter (specific hygiene type or 'All')
     """
     try:
-        q = request.query_params
-        start_date = q.get("start_date")
-        end_date = q.get("end_date")
-        brand = q.get("brand")
-        platform = q.get("platform")
-        hygiene = q.get("hygiene", "All")
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+        brand = request.query_params.get('brand')
+        platform = request.query_params.get('platform')
+        hygiene = request.query_params.get('hygiene', 'All')
 
-        # ---------------------------------------------------------------------
-        # 1️⃣ Optional caching
-        # ---------------------------------------------------------------------
-        cache_key = f"hygiene:{brand}:{platform}:{hygiene}:{start_date}:{end_date}"
-        cached = cache.get(cache_key)
-        if cached:
-            cached["cache_hit"] = True
-            return Response(cached, status=status.HTTP_200_OK)
+        # Generate cache key based on all filter parameters
+        cache_key_parts = [
+            'hygiene_table',
+            f'sd:{start_date}' if start_date else 'sd:none',
+            f'ed:{end_date}' if end_date else 'ed:none',
+            f'b:{brand}' if brand else 'b:none',
+            f'p:{platform}' if platform else 'p:none',
+            f'h:{hygiene}' if hygiene else 'h:all'
+        ]
+        cache_key = hashlib.md5(':'.join(cache_key_parts).encode()).hexdigest()
 
-        # ---------------------------------------------------------------------
-        # 2️⃣ Hygiene column mapping
-        # ---------------------------------------------------------------------
+        # Try to get cached response
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            cached_response['cache_hit'] = True
+            return Response(cached_response, status=status.HTTP_200_OK)
+
+        # Define hygiene-specific columns mapping - full set as requested
+        # Define this early so it's available for both mock data and real data
         hygiene_columns_map = {
-            "Price Hygiene": ["Price Rule", "Live Price", "Price Validation", "Price_Hygiene"],
-            "Coupon Hygiene": ["Coupon Rule", "Live Coupon", "Coupon Validation", "Coupon_Hygiene"],
-            "Activation_Hygiene": [
-                "SNS Rule", "Live SNS", "SNS Validation",
-                "BXGY Rule", "Live BXGY", "BXGY Validation", "Activation_Hygiene"
-            ],
-            "Availability Hygiene": ["Availability", "Availability_Hygiene"],
-            "Deal Hygiene": ["Deal Tag", "Deal_Hygiene"],
-            "EDD Hygiene": [
-                "EDD_400013", "EDD_600005", "EDD_122102", "EDD_700016", "EDD_560068", "EDD_Hygiene"
-            ],
-            "Sold By Validation": [
-                *[f'Sold By {i}_{code}' for i in range(1, 4) for code in ['400013', '600005', '122102', '700016', '560068']],
-                "Sold By Validation"
-            ],
-            "Rating Hygiene": ["3 Star Ratings", "2 Star Ratings", "1 Star Ratings", "Total Ratings", "Ratings", "Rating_Hygiene"],
-            "Catalog_Hygiene": [
-                "Ratings", "Sub-Category BSR", "Category BSR", "Number of Other Sellers",
-                "Title Length", "Bullet Point Count", "Videos Count", "Images Count", "A+", "Catalog_Hygiene"
-            ]
+            'Price Hygiene': ['Price Rule', 'Live Price', 'Price Validation', 'Price_Hygiene'],
+            'Coupon Hygiene': ['Coupon Rule', 'Live Coupon', 'Coupon Validation', 'Coupon_Hygiene'],
+            'Activation_Hygiene': ['SNS Rule', 'Live SNS', 'SNS Validation', 'BXGY Rule', 'Live BXGY', 'BXGY Validation', 'Activation_Hygiene'],
+            'Availability Hygiene': ['Availability', 'Availability_Hygiene'],
+            'Deal Hygiene': ['Deal Tag', 'Deal_Hygiene'],
+            'EDD Hygiene': ['EDD_400013', 'EDD_600005', 'EDD_122102', 'EDD_700016', 'EDD_560068', 'EDD_Hygiene'],
+            'Sold By Validation': ['Sold By 1_400013', 'Sold By 1_600005', 'Sold By 1_122102', 'Sold By 1_700016', 'Sold By 1_560068', 'Sold By 2_400013', 'Sold By 2_600005', 'Sold By 2_122102', 'Sold By 2_700016', 'Sold By 2_560068', 'Sold By 3_400013', 'Sold By 3_600005', 'Sold By 3_122102', 'Sold By 3_700016', 'Sold By 3_560068', 'Sold By Validation'],
+            'Rating Hygiene': ['3 Star Ratings', '2 Star Ratings', '1 Star Ratings', 'Total Ratings', 'Ratings', 'Rating_Hygiene'],
+            'Catalog_Hygiene': ['Ratings', 'Sub-Category BSR', 'Category BSR', 'Number of Other Sellers', 'Title Length', 'Bullet Point Count', 'Videos Count', 'Images Count', 'A+', 'Catalog_Hygiene']
         }
 
-        # Common columns
-        common_columns = [
-            "Date", "Brand", "Platform", "SKU Code", "ASIN", "Generic Title",
-            "Category", "Sub-category", "GMV", "Units"
-        ]
+        # Cache table existence check (rarely changes)
+        table_check_cache_key = 'ecom_consolidated_table_exists'
+        table_exists = cache.get(table_check_cache_key)
 
-        # ---------------------------------------------------------------------
-        # 3️⃣ Column selection (efficient dynamic list)
-        # ---------------------------------------------------------------------
-        selected_columns = common_columns.copy()
-        if hygiene == "All":
-            for cols in hygiene_columns_map.values():
-                selected_columns.extend(cols)
-        else:
-            selected_columns.extend(hygiene_columns_map.get(hygiene, []))
-
-        # ---------------------------------------------------------------------
-        # 4️⃣ Table existence check
-        # ---------------------------------------------------------------------
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT EXISTS (
-                    SELECT 1 FROM information_schema.tables
-                    WHERE table_schema='public' AND table_name='ecom_consolidated'
-                )
-                """
-            )
-            if not cursor.fetchone()[0]:
-                # Mock data for dev/local
-                mock_data = [
-                    {"Date": "2024-01-15", "Brand": "Clear", "Platform": "Amazon", "Price_Hygiene": "95%"},
-                    {"Date": "2024-01-16", "Brand": "Clear", "Platform": "Flipkart", "Price_Hygiene": "90%"},
-                ]
-                return Response({
-                    "success": True,
-                    "data": mock_data,
-                    "hygiene_columns": hygiene_columns_map,
-                    "options": {"brands": ["Clear"], "platforms": ["Amazon", "Flipkart"]}
-                })
-
-        # ---------------------------------------------------------------------
-        # 5️⃣ Build WHERE clause dynamically
-        # ---------------------------------------------------------------------
-        where_clauses, params = [], []
-
-        def parse_date(value):
-            try:
-                return datetime.strptime(value, "%Y-%m-%d").date()
-            except Exception:
-                return None
-
-        start_date_obj, end_date_obj = parse_date(start_date), parse_date(end_date)
-
-        # Check once if 'date_cast' column exists
-        if not hasattr(get_hygiene_table_data, "_has_date_cast"):
+        if table_exists is None:
             with connection.cursor() as cursor:
-                cursor.execute("""
+                cursor.execute(
+                    """
                     SELECT EXISTS (
-                        SELECT 1 FROM information_schema.columns
+                        SELECT FROM information_schema.tables
                         WHERE table_schema = 'public'
                         AND table_name = 'ecom_consolidated'
-                        AND column_name = 'date_cast'
                     );
+                    """
+                )
+                table_exists = cursor.fetchone()[0]
+                # Cache for 1 hour (table structure doesn't change frequently)
+                cache.set(table_check_cache_key, table_exists, 3600)
+
+        with connection.cursor() as cursor:
+            if not table_exists:
+                # Return mock data structure for development - using actual database column names
+                mock_data = [
+                    {
+                        'Date': '2024-01-15',
+                        'Brand': 'Clear',
+                        'Platform': 'Amazon',
+                        'Price Rule': 'Standard',
+                        'Live Price': 299.00,
+                        'Price_Hygiene': '100%',
+                        'Coupon_Hygiene': '95%',
+                        'Activation_Hygiene': '100%',
+                        'Availability_Hygiene': '98%',
+                        'Deal_Hygiene': '100%',
+                        'EDD_Hygiene': '95%',
+                        'Sold By Validation': '90%',
+                        'Rating_Hygiene': '90%',
+                        'Catalog_Hygiene': '88%'
+                    },
+                    {
+                        'Date': '2024-01-15',
+                        'Brand': 'Clear',
+                        'Platform': 'Flipkart',
+                        'Price Rule': 'Standard',
+                        'Live Price': 299.00,
+                        'Price_Hygiene': '85%',
+                        'Coupon_Hygiene': '75%',
+                        'Activation_Hygiene': '50%',
+                        'Availability_Hygiene': '60%',
+                        'Deal_Hygiene': '45%',
+                        'EDD_Hygiene': '80%',
+                        'Sold By Validation': '95%',
+                        'Rating_Hygiene': '75%',
+                        'Catalog_Hygiene': '82%'
+                    },
+                    {
+                        'Date': '2024-01-16',
+                        'Brand': 'Clear',
+                        'Platform': 'Amazon',
+                        'Price Rule': 'Premium',
+                        'Live Price': 350.00,
+                        'Price_Hygiene': '70%',
+                        'Coupon_Hygiene': '88%',
+                        'Activation_Hygiene': '0%',
+                        'Availability_Hygiene': '92%',
+                        'Deal_Hygiene': '100%',
+                        'EDD_Hygiene': '70%',
+                        'Sold By Validation': '60%',
+                        'Rating_Hygiene': '85%',
+                        'Catalog_Hygiene': '78%'
+                    }
+                ]
+
+                # Get unique brands and platforms for filter options
+                brands = list(set([record.get('Brand', '') for record in mock_data if record.get('Brand')]))
+                platforms = list(set([record.get('Platform', '') for record in mock_data if record.get('Platform')]))
+                brands.sort()
+                platforms.sort()
+
+                return Response({
+                    'success': True,
+                    'data': mock_data,
+                    'hygiene_columns': hygiene_columns_map,
+                    'options': {
+                        'brands': brands,
+                        'platforms': platforms
+                    }
+                })
+
+            # Common columns that are always displayed
+            common_columns = [
+                'Date', 'Brand', 'Platform', 'SKU Code', 'ASIN', 'Generic Title',
+                'Category', 'Sub-category', 'GMV', 'Units'
+            ]
+
+            # Build dynamic column list based on hygiene type
+            selected_columns = common_columns.copy()
+            if hygiene == 'All':
+                # Include all hygiene-specific columns
+                for hygiene_type, columns in hygiene_columns_map.items():
+                    selected_columns.extend(columns)
+            elif hygiene in hygiene_columns_map:
+                # Include only columns for selected hygiene type
+                selected_columns.extend(hygiene_columns_map[hygiene])
+
+            # Build where clause
+            where_parts = []
+            params = []
+
+            if start_date:
+                try:
+                    start_date_obj = datetime.strptime(start_date, '%Y-%m-%d')
+                    start_date_formatted = start_date_obj.strftime('%d-%m-%Y')
+                except ValueError:
+                    start_date_formatted = start_date
+
+                where_parts.append("""
+                    CASE
+                        WHEN "Date" ~ '^\d{2}-\d{2}-\d{4}$' THEN TO_DATE("Date", 'DD-MM-YYYY')
+                        WHEN "Date" ~ '^\d{4}-\d{2}-\d{2}$' THEN TO_DATE("Date", 'YYYY-MM-DD')
+                        ELSE NULL
+                    END >= TO_DATE(%s, 'DD-MM-YYYY')
                 """)
-                get_hygiene_table_data._has_date_cast = cursor.fetchone()[0]
+                params.append(start_date_formatted)
 
-        date_column = "date_cast" if getattr(get_hygiene_table_data, "_has_date_cast", False) else '"Date"'
+            if end_date:
+                try:
+                    end_date_obj = datetime.strptime(end_date, '%Y-%m-%d')
+                    end_date_formatted = end_date_obj.strftime('%d-%m-%Y')
+                except ValueError:
+                    end_date_formatted = end_date
 
-        if start_date_obj:
-            where_clauses.append(f"{date_column} >= %s")
-            params.append(start_date_obj)
+                where_parts.append("""
+                    CASE
+                        WHEN "Date" ~ '^\d{2}-\d{2}-\d{4}$' THEN TO_DATE("Date", 'DD-MM-YYYY')
+                        WHEN "Date" ~ '^\d{4}-\d{2}-\d{2}$' THEN TO_DATE("Date", 'YYYY-MM-DD')
+                        ELSE NULL
+                    END <= TO_DATE(%s, 'DD-MM-YYYY')
+                """)
+                params.append(end_date_formatted)
+            if brand:
+                where_parts.append('"Brand" = %s')
+                params.append(brand)
+            if platform:
+                platforms = [p.strip() for p in platform.split(',') if p.strip()]
+                if platforms:
+                    placeholders = ','.join(['%s'] * len(platforms))
+                    where_parts.append(f'"Platform" IN ({placeholders})')
+                    params.extend(platforms)
 
-        if end_date_obj:
-            where_clauses.append(f"{date_column} <= %s")
-            params.append(end_date_obj)
+            where_clause = ' WHERE ' + ' AND '.join(where_parts) if where_parts else ''
 
-        if brand:
-            where_clauses.append('"Brand" = %s')
-            params.append(brand)
+            # Cache column existence check (table structure rarely changes)
+            columns_cache_key = 'ecom_consolidated_columns'
+            existing_columns = cache.get(columns_cache_key)
 
-        if platform:
-            platforms = [p.strip() for p in platform.split(",") if p.strip()]
-            placeholders = ", ".join(["%s"] * len(platforms))
-            where_clauses.append(f'"Platform" IN ({placeholders})')
-            params.extend(platforms)
+            if existing_columns is None:
+                cursor.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'ecom_consolidated'
+                    """
+                )
+                existing_columns = set(row[0] for row in cursor.fetchall())
+                # Cache for 1 hour (table structure doesn't change frequently)
+                cache.set(columns_cache_key, existing_columns, 3600)
 
-        where_sql = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+            selected_columns = [col for col in selected_columns if col in existing_columns]
 
-        # ---------------------------------------------------------------------
-        # 6️⃣ Filter selected columns based on DB existence
-        # ---------------------------------------------------------------------
-        with connection.cursor() as cursor:
-            cursor.execute("""
-                SELECT column_name FROM information_schema.columns
-                WHERE table_schema='public' AND table_name='ecom_consolidated'
-            """)
-            existing_cols = {row[0] for row in cursor.fetchall()}
+            # Build dynamic query
+            columns_sql = ', '.join(f'"{col}"' for col in selected_columns)
+            query = f"""
+                SELECT {columns_sql}
+                FROM public.ecom_consolidated
+                {where_clause}
+                ORDER BY "Date" DESC, "Platform", "Brand"
+            """
 
-        selected_columns = [c for c in selected_columns if c in existing_cols]
-        if not selected_columns:
-            return Response({"success": False, "error": "No valid columns found."}, status=status.HTTP_400_BAD_REQUEST)
-
-        columns_sql = ", ".join(f'"{c}"' for c in selected_columns)
-
-        # ---------------------------------------------------------------------
-        # 7️⃣ Main query (optimized order + minimal formatting)
-        # ---------------------------------------------------------------------
-        query = f"""
-            SELECT {columns_sql}
-            FROM public.ecom_consolidated
-            {where_sql}
-            ORDER BY
-                CASE
-                    WHEN "Date" ~ '^\d{2}-\d{2}-\d{4}$' THEN TO_DATE("Date", 'DD-MM-YYYY')
-                    WHEN "Date" ~ '^\d{4}-\d{2}-\d{2}$' THEN TO_DATE("Date", 'YYYY-MM-DD')
-                END DESC,
-                "Platform", "Brand"
-        """
-
-        # ---------------------------------------------------------------------
-        # 8️⃣ Fetch data efficiently
-        # ---------------------------------------------------------------------
-        with connection.cursor() as cursor:
             cursor.execute(query, params)
-            cols = [col[0] for col in cursor.description]
-            data = [dict(zip(cols, row)) for row in cursor.fetchall()]
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
 
-        # ---------------------------------------------------------------------
-        # 9️⃣ Fetch filter dropdowns
-        # ---------------------------------------------------------------------
-        with connection.cursor() as cursor:
-            cursor.execute('SELECT DISTINCT "Brand" FROM public.ecom_consolidated WHERE "Brand" IS NOT NULL ORDER BY "Brand"')
-            brands = [r[0] for r in cursor.fetchall()]
-            cursor.execute('SELECT DISTINCT "Platform" FROM public.ecom_consolidated WHERE "Platform" IS NOT NULL ORDER BY "Platform"')
-            platforms = [r[0] for r in cursor.fetchall()]
+            # Convert to list of dictionaries
+            data = [dict(zip(columns, row)) for row in rows]
 
-        response_data = {
-            "success": True,
-            "data": data,
-            "hygiene_columns": hygiene_columns_map,
-            "selected_columns": selected_columns,
-            "options": {"brands": brands, "platforms": platforms},
-            "cache_hit": False,
-        }
+            # Optimize: Get brands and platforms in a single query instead of two separate queries
+            cursor.execute('''
+                SELECT 
+                    (SELECT json_agg(DISTINCT "Brand" ORDER BY "Brand") 
+                     FROM public.ecom_consolidated 
+                     WHERE "Brand" IS NOT NULL) as brands,
+                    (SELECT json_agg(DISTINCT "Platform" ORDER BY "Platform") 
+                     FROM public.ecom_consolidated 
+                     WHERE "Platform" IS NOT NULL) as platforms
+            ''')
+            filter_result = cursor.fetchone()
+            brands = filter_result[0] if filter_result and filter_result[0] else []
+            platforms = filter_result[1] if filter_result and filter_result[1] else []
 
-        cache.set(cache_key, response_data, timeout=600)
-        return Response(response_data, status=status.HTTP_200_OK)
+            response_data = {
+                'success': True,
+                'data': data,
+                'hygiene_columns': hygiene_columns_map,
+                'selected_columns': selected_columns,
+                'options': {
+                    'brands': brands,
+                    'platforms': platforms
+                },
+                'cache_hit': False
+            }
+
+            # Cache the response for 10 minutes (600 seconds)
+            # Hygiene data may change more frequently than DRR data
+            cache.set(cache_key, response_data, 600)
+
+            return Response(response_data, status=status.HTTP_200_OK)
 
     except Exception as e:
-        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        import traceback
+        logger.error(f"Hygiene Table Error: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return Response({'success': False, 'error': str(e)}, status=500)

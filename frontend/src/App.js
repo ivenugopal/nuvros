@@ -408,7 +408,7 @@ function App() {
   const [trendLoading, setTrendLoading] = useState(false);
   const [trendError, setTrendError] = useState(null);
   const [trendStartDate, setTrendStartDate] = useState(defaultMonthStart);
-  const [trendEndDate, setTrendEndDate] = useState(defaultMonthEnd);
+  const [trendEndDate, setTrendEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [trendBrand, setTrendBrand] = useState('');
   const [trendPlatform, setTrendPlatform] = useState([]);
   const [trendMetric1, setTrendMetric1] = useState('Live Price');
