@@ -552,9 +552,16 @@ function App() {
     }));
   };
 
+  // Fetch user brands only once when authToken is available
   useEffect(() => {
     if (authToken) {
       fetchUserBrands();
+    }
+  }, [authToken]);
+
+  // Fetch data when filters change
+  useEffect(() => {
+    if (authToken) {
       fetchData();
       fetchTargetData();
     }
