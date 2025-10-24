@@ -3036,18 +3036,28 @@ def signup(request):
         salt = os.urandom(16)
         password_hash = f"{salt.hex()}:{_hash_password(password, salt)}"
 
+        # 🔹 Add default module access mapping
+        default_module_brand_mapping = {
+            "Sales": ["ALL"],
+            "Hygiene": ["ALL"],
+            "DRR": ["ALL"]
+        }
+
         user = AppUser.objects.create(
             username=username,
             email=email or None,
             full_name=full_name or None,
             password_hash=password_hash,
             is_active=True,
+            module_brand_mapping=default_module_brand_mapping,  # ✅ added
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow(),
         )
 
         token = generate_jwt(user.id)
-        return Response({'success': True, 'token': token, 'user': {'id': user.id, 'username': user.username, 'full_name': user.full_name, 'email': user.email}}, status=201)
+        return Response({'success': True, 'token': token, 'user': {'id': user.id, 'username': user.username, 'full_name': user.full_name,
+                                                                   'email': user.email,
+                                                                   'module_brand_mapping': user.module_brand_mapping,}}, status=201)
     except Exception as e:
         return Response({'success': False, 'error': str(e)}, status=500)
 
