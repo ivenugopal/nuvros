@@ -554,6 +554,7 @@ function App() {
 
   useEffect(() => {
     if (authToken) {
+      fetchUserBrands();
       fetchData();
       fetchTargetData();
     }
@@ -1202,7 +1203,9 @@ function App() {
         setAvailableContribManufacturingCities(response.data.manufacturing_cities || []);
         setAvailableContribCategories(response.data.categories || []);
         setAvailableContribSubCategories(response.data.sub_categories || []);
+        console.log("Current available brands:", availableBrands);
         setAvailableBrands(response.data.brands || []);
+//        setAvailableBrands(availableBrands || []);
         setContribPagination(response.data.pagination || {});
       } else {
         setContribError(response.data.error || 'Failed to fetch');
@@ -1431,6 +1434,21 @@ function App() {
   const isAllPlatformsSelected = selectedContribPlatforms.length === 0 || selectedContribPlatforms.length === availableContribPlatforms.length;
   const filteredContribPlatforms = (availableContribPlatforms || []).filter(p => p && p.toLowerCase().includes(contribSearch.toLowerCase()));
 
+  const fetchUserBrands = async () => {
+    try {
+      const response = await api.get('/user-brands/');
+      if (response.data.success) {
+        console.log('Consolidated data:', response.data.data);
+        setAvailableBrands(response.data.brands || []);
+      } else {
+        console.error('Failed to fetch user brands:', response.data.error);
+      }
+    }
+    catch (err) {
+      console.error('Error fetching user brands:', err);
+    }
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -1447,7 +1465,7 @@ function App() {
         setTotalCitiesLiveOverall(response.data.total_cities_live || 0);
         setTotalArticlesOverall(response.data.total_articles || 0);
         setAvailableOverallPlatforms(response.data.platforms || []);
-        setAvailableBrands(response.data.brands || []);
+//        setAvailableBrands(response.data.brands || []);
         setError(null); // Clear error on successful response
       } else {
         setError(response.data.error);

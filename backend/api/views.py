@@ -22,14 +22,30 @@ logger = logging.getLogger(__name__)
 
 @api_view(['GET'])
 @require_auth
+def get_user_brands(request):
+    """
+    Fetch allowed brands for the authenticated user.
+    """
+    try:
+        username = request.current_user.full_name
+        brands = get_allowed_brands_for_user(username)
+        if brands and brands[0].upper() == 'ALL' or not brands:
+            with connection.cursor() as c:
+                c.execute(
+                    "SELECT DISTINCT brand FROM public.sales_master_consolidated_final_test WHERE brand IS NOT NULL ORDER BY brand")
+                brands = [r[0] for r in c.fetchall()]
+        return Response({"success": True, "brands": brands}, status=status.HTTP_200_OK)
+    except Exception as e:
+        return Response({"success": False, "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['GET'])
+@require_auth
 def get_consolidated_data(request):
     """
     Optimized: Aggregated sales data by platform with optional date filtering and growth rate calculation.
     Uses CTEs and reduced query overhead for faster performance.
     """
     try:
-        username = request.current_user.full_name
-        # brands = get_allowed_brands_for_user(username)
         q = request.query_params
         brand = q.get("brand")
         start_date_str, end_date_str = q.get("start_date"), q.get("end_date")
