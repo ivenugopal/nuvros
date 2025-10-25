@@ -156,7 +156,7 @@ export default function NumericConditionDropdown({
     padding: 0,
     margin: 0,
     cursor: 'pointer',
-    color: 'inherit',
+    color: '#ffffff', // Explicit white color for visibility on gradient table headers
   };
 
   const SlidersIcon = ({ active }) => (
@@ -174,7 +174,7 @@ export default function NumericConditionDropdown({
     <div ref={containerRef} style={{ position: 'relative', width: iconOnly ? 'auto' : '100%' }}>
       <div
         id={id}
-        className={className}
+        className={iconOnly ? '' : className}
         role="button"
         tabIndex={0}
         onClick={() => setOpen((o) => !o)}
