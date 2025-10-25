@@ -24,7 +24,7 @@ const menuBaseStyle = {
   borderRadius: '12px',
   boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15), 0 4px 16px rgba(0, 0, 0, 0.1)',
   padding: '16px',
-  width: 280,
+  width: 320,
   backdropFilter: 'blur(8px)',
 };
 
@@ -201,13 +201,15 @@ export default function NumericConditionDropdown({
               value={op}
               onChange={(e) => setOp(e.target.value)}
               style={{ 
-                flex: '0 0 55%', 
-                height: 34, 
+                flex: '1 1 auto',
+                minWidth: '140px',
+                height: 34,
                 borderRadius: 8, 
-                padding: '4px 10px', 
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid rgba(102, 126, 234, 0.3)', 
+                padding: '4px 8px',
+                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid rgba(102, 126, 234, 0.3)',
                 background: isDarkMode ? 'rgba(45, 55, 72, 0.9)' : 'rgba(255, 255, 255, 0.9)', 
-                color: isDarkMode ? '#f7fafc' : '#495057' 
+                color: isDarkMode ? '#f7fafc' : '#495057',
+                fontSize: '13px'
               }}
             >
               <option value="gt">Greater Than</option>
@@ -219,15 +221,17 @@ export default function NumericConditionDropdown({
               value={num}
               onChange={(e) => setNum(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') apply(); }}
-              placeholder="Enter number"
-              style={{ 
-                flex: 1, 
-                height: 34, 
+              placeholder="Value"
+              style={{
+                flex: '0 1 auto',
+                width: '100px',
+                height: 34,
                 borderRadius: 8, 
                 padding: '6px 10px', 
                 border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.3)' : '1px solid rgba(102, 126, 234, 0.3)', 
                 background: isDarkMode ? 'rgba(45, 55, 72, 0.9)' : 'rgba(255, 255, 255, 0.9)', 
-                color: isDarkMode ? '#f7fafc' : '#495057' 
+                color: isDarkMode ? '#f7fafc' : '#495057',
+                fontSize: '13px'
               }}
             />
           </div>
