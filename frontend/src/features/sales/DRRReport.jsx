@@ -502,6 +502,6 @@ const DRRReport = ({
   );
 };
 
-export default DRRReport;
+export default React.memo(DRRReport);
 
 

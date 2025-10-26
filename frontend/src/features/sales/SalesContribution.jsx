@@ -279,6 +279,6 @@ const SalesContribution = ({
   );
 };
 
-export default SalesContribution;
+export default React.memo(SalesContribution);
 
 

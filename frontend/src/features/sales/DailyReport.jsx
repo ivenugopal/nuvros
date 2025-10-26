@@ -394,6 +394,6 @@ const DailyReport = ({
   );
 };
 
-export default DailyReport;
+export default React.memo(DailyReport);
 
 

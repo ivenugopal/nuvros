@@ -1,17 +1,15 @@
-from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import connection
 import json
 import calendar
-from django.utils.crypto import pbkdf2
 import os
 import logging
 import math
 from decimal import Decimal, InvalidOperation
 from typing import Any, Optional
-import hashlib, json
+import hashlib
 from django.core.cache import cache
 
 from .models import AppUser
@@ -54,17 +52,23 @@ def get_user_brands(request):
                 status=status.HTTP_200_OK
             )
 
+        # 🔹 OPTIMIZATION: Fetch all brands once and reuse for empty module lists
+        all_brands = None
+        has_empty_modules = any(not brands for brands in module_brands.values())
+
+        if has_empty_modules:
+            with connection.cursor() as c:
+                c.execute("""
+                    SELECT DISTINCT brand 
+                    FROM public.sales_master_consolidated_final_test
+                    WHERE brand IS NOT NULL
+                    ORDER BY brand
+                """)
+                all_brands = [r[0] for r in c.fetchall()]
+
         # 🔹 Ensure no empty brand lists
         for module, brands in module_brands.items():
             if not brands:
-                with connection.cursor() as c:
-                    c.execute("""
-                        SELECT DISTINCT brand 
-                        FROM public.sales_master_consolidated_final_test
-                        WHERE brand IS NOT NULL
-                        ORDER BY brand
-                    """)
-                    all_brands = [r[0] for r in c.fetchall()]
                 module_brands[module] = all_brands
 
         return Response({"success": True, "brands": module_brands}, status=status.HTTP_200_OK)
@@ -555,6 +559,13 @@ def get_sales_contribution(request):
         if page_size < 1 or page_size > 100:  # Limit max page size to 100
             page_size = 20
 
+        # Cache check - 10 minute cache for sales contribution
+        cache_key = f"sales_contrib:{start_date}:{end_date}:{platforms_param}:{city_param}:{supply_source_param}:{manufacturing_param}:{brand_param}:{category}:{sub_category}:{page}:{page_size}"
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            cached_response['cache_hit'] = True
+            return Response(cached_response, status=status.HTTP_200_OK)
+
         # Validate dates if provided
         if start_date:
             try:
@@ -936,7 +947,7 @@ def get_sales_contribution(request):
             )
             manufacturing_list = [r[0] for r in cursor.fetchall()]
 
-            return Response({
+            response_data = {
             'success': True,
             'data': data,
             'count': len(data),
@@ -967,8 +978,14 @@ def get_sales_contribution(request):
                 'brand': brand_values if brand_values else None,
                 'category': category,
                 'sub_category': sub_category
-            }
-        }, status=200)
+            },
+            'cache_hit': False
+        }
+
+        # Cache the response for 10 minutes (600 seconds)
+        cache.set(cache_key, response_data, 600)
+
+        return Response(response_data, status=200)
     except Exception as e:
         return Response({'success': False, 'error': str(e)}, status=500)
 
@@ -1304,6 +1321,13 @@ def get_drr_report(request):
             page = 1
         if page_size < 1 or page_size > 100:  # Limit max page size to 100
             page_size = 20
+
+        # Cache check - 5 minute cache for DRR report
+        cache_key = f"drr:{start_date}:{end_date}:{platform}:{city}:{supply_source}:{manufacturing_city}:{category_filter}:{sub_category_filter}:{brand}:{page}:{page_size}"
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            cached_response['cache_hit'] = True
+            return Response(cached_response, status=status.HTTP_200_OK)
 
         # Validate date parameters if provided
         if start_date:
@@ -4043,6 +4067,13 @@ def get_hygiene_overview(request):
         brand = request.query_params.get('brand')
         platform = request.query_params.get('platform')
 
+        # Cache check - 15 minute cache for hygiene overview
+        cache_key = f"hygiene_overview:{start_date}:{end_date}:{brand}:{platform}"
+        cached_response = cache.get(cache_key)
+        if cached_response:
+            cached_response['cache_hit'] = True
+            return Response(cached_response, status=status.HTTP_200_OK)
+
         with connection.cursor() as cursor:
             # Check if ecom_consolidated table exists
             cursor.execute(
@@ -4344,8 +4375,13 @@ def get_hygiene_overview(request):
                 'options': {
                     'brands': brands,
                     'platforms': platforms
-                }
+                },
+                'cache_hit': False
             }
+
+            # Cache the response for 15 minutes (900 seconds)
+            cache.set(cache_key, response_payload, 900)
+
             return Response(_sanitize_for_json(response_payload))
 
     except Exception as e:

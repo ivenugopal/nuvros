@@ -47,6 +47,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.gzip.GZipMiddleware",  # Enable gzip compression
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -85,6 +86,11 @@ DATABASES = {
         "USER": "nuvr",
         "PASSWORD": "nuvr1234",
         "PORT": "5432",
+        "CONN_MAX_AGE": 600,  # Connection pooling - reuse connections for 10 minutes
+        "OPTIONS": {
+            "connect_timeout": 10,  # Connection timeout in seconds
+            "options": "-c statement_timeout=30000"  # Query timeout: 30 seconds
+        }
     }
 }
 

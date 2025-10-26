@@ -269,4 +269,4 @@ const HygieneOverview = ({
   );
 };
 
-export default HygieneOverview;
+export default React.memo(HygieneOverview);
