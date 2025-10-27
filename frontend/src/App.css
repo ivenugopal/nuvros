@@ -1265,9 +1265,7 @@
 }
 
 .theme-toggle-btn:hover {
-  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.3);
-  filter: brightness(1.1);
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .theme-toggle-btn:active {
@@ -1275,11 +1273,14 @@
 }
 
 .theme-icon {
-  transition: transform 0.3s ease;
+  transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .theme-toggle-btn:hover .theme-icon {
-  transform: scale(1.1);
+  transform: rotate(180deg);
 }
 
 /* Futuristic Table Styles */
