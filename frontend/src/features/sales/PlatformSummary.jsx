@@ -396,6 +396,6 @@ const PlatformSummary = ({
   );
 };
 
-export default PlatformSummary;
+export default React.memo(PlatformSummary);
 
 

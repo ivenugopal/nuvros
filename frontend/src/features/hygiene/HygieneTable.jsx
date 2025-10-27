@@ -404,4 +404,4 @@ const HygieneTable = () => {
   );
 };
 
-export default HygieneTable;
+export default React.memo(HygieneTable);

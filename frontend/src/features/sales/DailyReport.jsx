@@ -80,10 +80,19 @@ const DailyReport = ({
   const infoLabel = `Showing ${Math.min(((current_page - 1) * page_size) + 1, Math.max(totalCount, 1))} to ${Math.min(current_page * page_size, totalCount)} of ${totalCount} entries`;
 
   const handleSort = (columnKey) => {
-    setSortState((prev) => ({
-      key: columnKey,
-      direction: prev.key === columnKey && prev.direction === 'asc' ? 'desc' : 'asc',
-    }));
+    setSortState((prev) => {
+      // Cycle through: no sort → asc → desc → no sort
+      if (prev.key !== columnKey) {
+        // Different column clicked, start with asc
+        return { key: columnKey, direction: 'asc' };
+      } else if (prev.direction === 'asc') {
+        // Same column, was asc, go to desc
+        return { key: columnKey, direction: 'desc' };
+      } else {
+        // Same column, was desc, clear sort
+        return { key: null, direction: 'asc' };
+      }
+    });
   };
 
   const sortArrow = (columnKey) => {
@@ -385,6 +394,6 @@ const DailyReport = ({
   );
 };
 
-export default DailyReport;
+export default React.memo(DailyReport);
 
 

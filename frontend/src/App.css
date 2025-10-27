@@ -2800,17 +2800,23 @@
   background-color: #fff;
   z-index: 11;
   border-right: 2px solid rgba(102, 126, 234, 0.3);
-  width: 220px;
-  min-width: 220px;
-  max-width: 220px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
   text-align: left;
   font-weight: 500;
   /* Ensure sticky column stays visible */
   box-shadow: 3px 0 8px rgba(102, 126, 234, 0.15);
-  /* Handle text overflow */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Allow text to wrap to show full content */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  padding: 8px 12px;
+  vertical-align: middle;
+  /* Ensure opaque background - no transparency */
+  background-clip: padding-box;
+  isolation: isolate;
 }
 
 .daily-report-table th.sticky-column {
@@ -2821,6 +2827,9 @@
   z-index: 12;
   /* Ensure proper layering */
   box-shadow: 2px 2px 8px rgba(102, 126, 234, 0.4);
+  /* Ensure solid background */
+  background-clip: padding-box;
+  isolation: isolate;
 }
 
 .daily-report-table .date-column {
@@ -2833,12 +2842,12 @@
   /* Use consistent font styling with other cells */
   font-family: "Plus Jakarta Sans", "Plus Jakarta Sans Placeholder", sans-serif;
   color: #495057;
-  /* Ensure text doesn't overflow */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  /* Add tooltip capability */
-  cursor: help;
+  /* Allow text to wrap and show full content */
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .daily-report-table .metric-cell {
@@ -2860,12 +2869,18 @@
 
 .daily-report-table tbody tr:hover .sticky-column {
   background-color: #f8f9fa;
+  /* Ensure solid background on hover */
+  background-clip: padding-box;
+  isolation: isolate;
 }
 
 /* Ensure sticky cells maintain their background on scroll */
 .daily-report-table td.sticky-column {
   background-color: #fff;
   z-index: 11;
+  /* Ensure solid opaque background */
+  background-clip: padding-box;
+  isolation: isolate;
 }
 
 /* Mobile responsiveness for Daily Report */
@@ -3442,23 +3457,35 @@
   background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
   color: #e2e8f0;
   box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.4);
+  /* Ensure solid background */
+  background-clip: padding-box;
+  isolation: isolate;
 }
 
 [data-theme="dark"] .daily-report-table .sticky-column {
-  background-color: rgba(45, 55, 72, 0.8);
+  background-color: #2d3748;
   border-right: 2px solid rgba(255, 255, 255, 0.1);
+  /* Ensure solid opaque background - no transparency */
+  background-clip: padding-box;
+  isolation: isolate;
 }
 
 [data-theme="dark"] .daily-report-table td.sticky-column {
-  background-color: rgba(45, 55, 72, 0.8);
+  background-color: #2d3748;
+  /* Ensure solid opaque background */
+  background-clip: padding-box;
+  isolation: isolate;
 }
 
 [data-theme="dark"] .daily-report-table tbody tr:hover {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(74, 85, 104, 0.3);
 }
 
 [data-theme="dark"] .daily-report-table tbody tr:hover .sticky-column {
-  background-color: rgba(255, 255, 255, 0.05);
+  background-color: rgba(74, 85, 104, 0.5);
+  /* Ensure solid background on hover */
+  background-clip: padding-box;
+  isolation: isolate;
 }
 
 [data-theme="dark"] .daily-report-table .platform-item-cell,

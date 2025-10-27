@@ -1220,8 +1220,18 @@ function App() {
   const handleSort = (tableKey, columnKey) => {
     setSortState((prev) => {
       const current = prev[tableKey] || { key: null, direction: 'asc' };
-      const nextDir = current.key === columnKey && current.direction === 'asc' ? 'desc' : 'asc';
-      return { ...prev, [tableKey]: { key: columnKey, direction: nextDir } };
+
+      // Cycle through: no sort → asc → desc → no sort
+      if (current.key !== columnKey) {
+        // Different column clicked, start with asc
+        return { ...prev, [tableKey]: { key: columnKey, direction: 'asc' } };
+      } else if (current.direction === 'asc') {
+        // Same column, was asc, go to desc
+        return { ...prev, [tableKey]: { key: columnKey, direction: 'desc' } };
+      } else {
+        // Same column, was desc, clear sort
+        return { ...prev, [tableKey]: { key: null, direction: 'asc' } };
+      }
     });
   };
 

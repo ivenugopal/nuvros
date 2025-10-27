@@ -185,6 +185,6 @@ const AdsOverview = ({
   );
 };
 
-export default AdsOverview;
+export default React.memo(AdsOverview);
 
 

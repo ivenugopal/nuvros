@@ -340,6 +340,6 @@ const OverallSummary = ({
   );
 };
 
-export default OverallSummary;
+export default React.memo(OverallSummary);
 
 
