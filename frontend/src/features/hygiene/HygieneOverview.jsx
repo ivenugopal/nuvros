@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import MultiSelectDropdown from '../../components/common/MultiSelectDropdown';
+import { useUserBrands } from '../../contexts/UserBrandsContext';
 
 const HygieneOverview = ({
   data,
@@ -11,34 +12,16 @@ const HygieneOverview = ({
   onChangeFilters,
   onRefresh,
 }) => {
+  const { selectedBrand } = useUserBrands();
   const [localFilters, setLocalFilters] = useState(() => ({
     startDate: filters?.startDate || '',
     endDate: filters?.endDate || '',
-    brand: filters?.brand || '',
     platform: filters?.platform || [],
   }));
 
-  // Load brands from localStorage on component mount (Hygiene module)
+  // Update local options when props change
   const [localOptions, setLocalOptions] = useState(options || {});
 
-  useEffect(() => {
-    try {
-      const userBrandsJson = localStorage.getItem('userBrands');
-      if (userBrandsJson) {
-        const userBrands = JSON.parse(userBrandsJson);
-        // Use Hygiene brands if available, otherwise fall back to Sales brands
-        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || [];
-        setLocalOptions(prev => ({
-          ...prev,
-          brands: hygieneBrands
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading brands from localStorage:', error);
-    }
-  }, []);
-
-  // Update local options when props change (but don't override brands)
   useEffect(() => {
     setLocalOptions(prev => ({
       ...prev,
@@ -51,7 +34,6 @@ const HygieneOverview = ({
       ...prev,
       startDate: filters?.startDate || '',
       endDate: filters?.endDate || '',
-      brand: filters?.brand || '',
       platform: filters?.platform || [],
     }));
   }, [filters]);
@@ -70,13 +52,6 @@ const HygieneOverview = ({
     onChangeFilters && onChangeFilters({ ...localFilters });
     onRefresh && onRefresh();
   };
-
-  // REMOVED: Auto-trigger on filter changes - users must click Apply button
-  // useEffect(() => {
-  //   if (!onChangeFilters) return;
-  //   onChangeFilters({ ...localFilters });
-  // }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.platform]);
-
 
   const renderStatCards = () => (
     <div className="stat-cards">
@@ -211,37 +186,25 @@ const HygieneOverview = ({
   const renderToolbar = () => (
     <div className="filters-toolbar">
       <div className="filters-row">
-          <div className="date-input-group">
-            <label htmlFor="hygiene-start-date">Start Date:</label>
-            <input
+        <div className="date-input-group">
+          <label htmlFor="hygiene-start-date">Start Date:</label>
+          <input
             id="hygiene-start-date"
             type="date"
             value={localFilters.startDate}
             onChange={(e) => onField('startDate', e.target.value)} 
           />
-          </div>
-          <div className="date-input-group">
-            <label htmlFor="hygiene-end-date">End Date:</label>
-            <input
+        </div>
+        <div className="date-input-group">
+          <label htmlFor="hygiene-end-date">End Date:</label>
+          <input
             id="hygiene-end-date"
             type="date"
             max={new Date().toISOString().split('T')[0]}
             value={localFilters.endDate} 
             onChange={(e) => onField('endDate', e.target.value)} 
           />
-          </div>
-        <label>
-          Brand
-          <select 
-            value={localFilters.brand} 
-            onChange={(e) => onField('brand', e.target.value)}
-          >
-            <option value="">All Brands</option>
-            {(localOptions?.brands || []).map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
-        </label>
+        </div>
         <div className="filter-group">
           <label>Platform</label>
           <MultiSelectDropdown

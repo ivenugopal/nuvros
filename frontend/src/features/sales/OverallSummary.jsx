@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatNumber } from '../../utils/format';
+import { useUserBrands } from '../../contexts/UserBrandsContext';
 
 const OverallSummary = ({
   data,
@@ -15,14 +16,12 @@ const OverallSummary = ({
   endDate,
   setStartDate,
   setEndDate,
-  selectedBrand,
-  availableBrands,
-  setSelectedBrand,
   onRefresh,
   onRefreshTargets,
   onDownload,
   isDownloading,
 }) => {
+  const { selectedBrand } = useUserBrands();
   const renderSalesSummaryTable = () => {
     if (!Array.isArray(data) || data.length === 0) return <p>No data available</p>;
 
@@ -263,27 +262,6 @@ const OverallSummary = ({
                 setEndDate(e.target.value);
               }}
             />
-          </div>
-          <div className="date-input-group">
-            <label htmlFor="brand-filter">Brand:</label>
-            <select
-              id="brand-filter"
-              value={selectedBrand}
-              onChange={(e) => {
-                console.log('🏷️ USER ACTION: Brand changed', {
-                  component: 'OverallSummary',
-                  oldValue: selectedBrand,
-                  newValue: e.target.value,
-                  willTriggerAPI: true
-                });
-                setSelectedBrand(e.target.value);
-              }}
-              className="platform-select"
-            >
-              {(availableBrands || []).map((brand) => (
-                <option key={brand} value={brand}>{brand}</option>
-              ))}
-            </select>
           </div>
           <button
             onClick={() => {

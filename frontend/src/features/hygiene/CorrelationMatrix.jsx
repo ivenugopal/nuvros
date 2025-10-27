@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import MultiSelectDropdown from '../../components/common/MultiSelectDropdown';
+import { useUserBrands } from '../../contexts/UserBrandsContext';
 
 const CorrelationMatrix = ({
   data,
@@ -10,33 +11,15 @@ const CorrelationMatrix = ({
   onChangeFilters,
   onRefresh,
 }) => {
+  const { selectedBrand } = useUserBrands();
   const [localFilters, setLocalFilters] = useState(() => ({
     startDate: filters?.startDate || '',
     endDate: filters?.endDate || '',
-    brand: filters?.brand || '',
     platform: filters?.platform || [],
   }));
-
+  // Update local options when props change
   // Load brands from localStorage on component mount (Hygiene module)
   const [localOptions, setLocalOptions] = useState(options || {});
-
-  useEffect(() => {
-    try {
-      const userBrandsJson = localStorage.getItem('userBrands');
-      if (userBrandsJson) {
-        const userBrands = JSON.parse(userBrandsJson);
-        // Use Hygiene brands if available, otherwise fall back to Sales brands
-        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || [];
-        setLocalOptions(prev => ({
-          ...prev,
-          brands: hygieneBrands
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading brands from localStorage:', error);
-    }
-  }, []);
-
   // Update local options when props change (but don't override brands)
   useEffect(() => {
     setLocalOptions(prev => ({
@@ -80,7 +63,6 @@ const CorrelationMatrix = ({
       filters: localFilters
     });
     onChangeFilters && onChangeFilters({ ...localFilters });
-    onRefresh && onRefresh();
   };
 
   // REMOVED: Auto-trigger on filter changes - users must click Apply button
@@ -213,18 +195,6 @@ const CorrelationMatrix = ({
             onChange={(e) => onField('endDate', e.target.value)}
           />
         </div>
-        <label>
-          Brand
-          <select
-            value={localFilters.brand}
-            onChange={(e) => onField('brand', e.target.value)}
-          >
-            <option value="">All Brands</option>
-            {(localOptions?.brands || []).map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
-        </label>
         <label>
           Platform
           <MultiSelectDropdown

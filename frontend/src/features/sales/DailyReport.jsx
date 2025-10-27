@@ -4,7 +4,8 @@ import NumericConditionDropdown from '../../components/common/NumericConditionDr
 import TextFilterDropdown from '../../components/common/TextFilterDropdown';
 import { formatNumber } from '../../utils/format';
 import { compareValues } from '../../utils/sort';
-import { 
+import { useUserBrands } from '../../contexts/UserBrandsContext';
+import {
   LineChart, 
   Line, 
   XAxis, 
@@ -35,6 +36,7 @@ const DailyReport = ({
   pageSize,
   setPageSize,
 }) => {
+  const { selectedBrand } = useUserBrands();
   const [sortState, setSortState] = useState({ key: null, direction: 'asc' });
   const [displayMode, setDisplayMode] = useState('table'); // 'table' or 'graph'
   const { current_page, page_size } = pagination;
@@ -237,10 +239,6 @@ const DailyReport = ({
               <option value="gmv">GMV</option>
               <option value="units">Units</option>
             </select>
-          </div>
-          <div className="date-input-group">
-            <label htmlFor="daily-report-brand-filter">Brand:</label>
-            <MultiSelectDropdown id="daily-report-brand-filter" options={options.brands || []} values={filters.brand || []} onChange={(vals) => onChangeFilters({ brand: vals })} />
           </div>
           <div className="date-input-group">
             <label htmlFor="daily-report-category-filter">Category:</label>

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatNumber } from '../../utils/format';
+import { useUserBrands } from '../../contexts/UserBrandsContext';
 
 const AdsOverview = ({
   data,
@@ -11,10 +12,10 @@ const AdsOverview = ({
   onChangeFilters,
   onRefresh,
 }) => {
+  const { selectedBrand } = useUserBrands();
   const [localFilters, setLocalFilters] = useState(() => ({
     startDate: filters?.startDate || '',
     endDate: filters?.endDate || '',
-    brand: filters?.brand || '',
     groupBy: filters?.groupBy || 'campaign',
   }));
 
@@ -23,7 +24,6 @@ const AdsOverview = ({
       ...prev,
       startDate: filters?.startDate || '',
       endDate: filters?.endDate || '',
-      brand: filters?.brand || '',
       groupBy: filters?.groupBy || 'campaign',
     }));
   }, [filters]);
@@ -43,7 +43,7 @@ const AdsOverview = ({
     if (!onChangeFilters) return;
     onChangeFilters({ ...localFilters });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.groupBy]);
+  }, [localFilters.startDate, localFilters.endDate, localFilters.groupBy]);
 
   const columns = useMemo(() => {
     let firstColLabel = 'Platform';
@@ -77,12 +77,6 @@ const AdsOverview = ({
           <label htmlFor="ads-end-date">End Date:</label>
           <input id="ads-end-date" type="date" max={new Date().toISOString().split('T')[0]} value={localFilters.endDate} onChange={(e) => onField('endDate', e.target.value)} />
         </div>
-        <label>
-          Brand
-          <select value={localFilters.brand} onChange={(e) => onField('brand', e.target.value)}>
-            {(options?.brands || []).map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </label>
         <label>
           Group By
           <select value={localFilters.groupBy} onChange={(e) => onField('groupBy', e.target.value)}>

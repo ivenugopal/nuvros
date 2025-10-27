@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatNumber } from '../../utils/format';
 import MultiSelectDropdown from '../../components/common/MultiSelectDropdown';
+import { useUserBrands } from '../../contexts/UserBrandsContext';
 
 const InventoryOverview = ({
   data,
@@ -12,6 +13,7 @@ const InventoryOverview = ({
   onChangeFilters,
   onRefresh,
 }) => {
+  const { selectedBrand } = useUserBrands();
   const dateCount = (dates || []).length;
   const tableStyle = { '--date-count': dateCount };
   const selectedMetrics = Array.isArray(filters.metric) && (filters.metric || []).length > 0
@@ -53,17 +55,6 @@ const InventoryOverview = ({
               values={Array.isArray(filters.platform) ? filters.platform : [filters.platform || 'All Platforms']}
               onChange={(vals) => onChangeFilters({ platform: vals })}
               triggerPlaceholder="Select platform..."
-              selectAllLabel="All Platforms"
-            />
-          </div>
-          <div className="date-input-group">
-            <label htmlFor="invovw-brand">Brand:</label>
-            <MultiSelectDropdown
-              id="invovw-brand"
-              options={options.brands || []}
-              values={Array.isArray(filters.brand) ? filters.brand : [filters.brand || '']}
-              onChange={(vals) => onChangeFilters({ brand: vals })}
-              triggerPlaceholder="Select brand..."
               selectAllLabel="All Brands"
             />
           </div>

@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { formatNumber } from '../../utils/format';
 import SingleSelectDropdown from '../../components/common/SingleSelectDropdown';
+import { useUserBrands } from '../../contexts/UserBrandsContext';
 
 const TrendAnalysis = ({
   data,
@@ -21,10 +22,10 @@ const TrendAnalysis = ({
   onChangeFilters,
   onRefresh,
 }) => {
+  const { selectedBrand } = useUserBrands();
   const [localFilters, setLocalFilters] = useState(() => ({
     startDate: filters?.startDate || '',
     endDate: filters?.endDate || '',
-    brand: filters?.brand || '',
     platform: filters?.platform || [],
     metric1: filters?.metric1 || 'Live Price',
     metric2: filters?.metric2 || 'Discount',
@@ -37,27 +38,9 @@ const TrendAnalysis = ({
     { key: 'Category BSR', label: 'Category BSR' },
     { key: 'Discount', label: 'Discount' },
   ];
-
+  // Update local options when props change
   // Load brands from localStorage on component mount (Hygiene module)
   const [localOptions, setLocalOptions] = useState(options || {});
-
-  useEffect(() => {
-    try {
-      const userBrandsJson = localStorage.getItem('userBrands');
-      if (userBrandsJson) {
-        const userBrands = JSON.parse(userBrandsJson);
-        // Use Hygiene brands if available, otherwise fall back to Sales brands
-        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || [];
-        setLocalOptions(prev => ({
-          ...prev,
-          brands: hygieneBrands
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading brands from localStorage:', error);
-    }
-  }, []);
-
   // Update local options when props change (but don't override brands)
   useEffect(() => {
     setLocalOptions(prev => ({
@@ -70,7 +53,6 @@ const TrendAnalysis = ({
     setLocalFilters((prev) => ({
       ...prev,
       startDate: filters?.startDate || '',
-      endDate: filters?.endDate || '',
       brand: filters?.brand || '',
       platform: filters?.platform || [],
     }));
@@ -155,18 +137,6 @@ const TrendAnalysis = ({
             onChange={(e) => onField('endDate', e.target.value)}
           />
         </div>
-        <label>
-          Brand
-          <select
-            value={localFilters.brand}
-            onChange={(e) => onField('brand', e.target.value)}
-          >
-            <option value="">All Brands</option>
-            {(localOptions?.brands || []).map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
-        </label>
         <label>
           Platform
           <SingleSelectDropdown

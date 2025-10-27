@@ -32,7 +32,9 @@ import HygieneTable from './features/hygiene/HygieneTable';
 import TrendAnalysis from './features/hygiene/TrendAnalysis';
 import CorrelationMatrix from './features/hygiene/CorrelationMatrix';
 
-function App() {
+// Inner component that uses UserBrandsContext
+function AppContent() {
+  const { selectedBrand } = useUserBrands(); // Use global brand from context
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('token') || '');
   // Stock Levels (snapshot) filters
   const [stockQueryDate, setStockQueryDate] = useState('');
@@ -105,8 +107,7 @@ function App() {
       const response = await api.get('/inventory-movements/', { params });
       if (response.data?.success) {
         setInvMovData(response.data.data || { platforms: [], rows: [] });
-        // Also refresh brand options
-        if (response.data?.filters?.brands) setAvailableBrands(response.data.filters.brands);
+        // Brand options are now managed by UserBrandsContext
         if (response.data?.filters?.supply_sources) setAvailablePlatformReportSupplySources(response.data.filters.supply_sources);
       } else {
         setInvMovError(response.data?.error || 'Failed to fetch');
@@ -367,10 +368,7 @@ function App() {
     has_previous: false,
     has_next: false
   });
-
-  // Add brand filter state
-  const [selectedBrand, setSelectedBrand] = useState('');
-  const [availableBrands, setAvailableBrands] = useState([]);
+  // Brand filter now managed by UserBrandsContext (global header brand)
   const [brandsInitialized, setBrandsInitialized] = useState(false);
   const [availableOverallPlatforms, setAvailableOverallPlatforms] = useState([]);
 
@@ -1277,8 +1275,7 @@ function App() {
         setAvailableContribManufacturingCities(response.data.manufacturing_cities || []);
         setAvailableContribCategories(response.data.categories || []);
         setAvailableContribSubCategories(response.data.sub_categories || []);
-        console.log("Current available brands:", availableBrands);
-//        setAvailableBrands(response.data.brands || []);
+        // Brands are now managed by UserBrandsContext
         setContribPagination(response.data.pagination || {});
       } else {
         setContribError(response.data.error || 'Failed to fetch');
@@ -1351,9 +1348,9 @@ function App() {
         const nextCats = response.data.categories || [];
         const nextSubs = response.data.sub_categories || [];
 
-        setAvailableBrands(nextBrands);
+        // Brands are now managed by UserBrandsContext
         setAvailableDailyReportCities(nextCities);
-        setAvailableDailyReportSupplySources(nextSupply);
+        // Brands are now managed by UserBrandsContext
         setAvailableDailyReportManufacturingCities(nextManu);
         setAvailableDailyReportCategories(nextCats);
         setAvailableDailyReportSubCategories(nextSubs);
@@ -1518,73 +1515,10 @@ function App() {
         // Store in localStorage for global access
         localStorage.setItem('userBrands', JSON.stringify(brands));
 
-        // Determine which module to update brands for
-        const targetModule = moduleKey || activeModule;
+        // Note: Global brand selection is now managed by UserBrandsContext
+        // This function only updates module-specific options if needed
 
-        // Update brands based on the active/expanded module
-        switch(targetModule) {
-          case 'sales':
-            // Update all sales-related brand dropdowns
-            const salesBrands = brands.Sales || brands.ALL || [];
-            console.log('🔍 Sales brands array:', salesBrands);
-            console.log('🔍 First brand (salesBrands[0]):', salesBrands[0]);
-            console.log('🔍 Current selectedBrand before setting:', selectedBrand);
-            setAvailableBrands(salesBrands);
-            // Always set first brand from the sorted array
-            if (salesBrands.length > 0) {
-              console.log('✅ Setting selectedBrand to:', salesBrands[0]);
-              setSelectedBrand(salesBrands[0]);
-              // Set first brand for all sales module filters
-              setSelectedDrrBrands([salesBrands[0]]);
-              setSelectedPlatformSummaryBrands([salesBrands[0]]);
-              setSelectedPlatformReportBrands([salesBrands[0]]);
-              setSelectedContribBrands([salesBrands[0]]);
-              setSelectedDailyReportBrands([salesBrands[0]]);
-            }
-            setBrandsInitialized(true);
-            break;
-
-          case 'hygiene':
-            // Update all hygiene-related brand dropdowns
-            setHygieneOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
-            setTrendOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
-            setCorrelationOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
-            break;
-
-          case 'ads':
-            // Update ads brands
-            setCatSpendOptions(prev => ({ ...prev, brands: brands.Ads || brands.Sales || [] }));
-            break;
-
-          case 'inventory':
-            // Update inventory brands when that module is implemented
-            // setInventoryOptions(prev => ({ ...prev, brands: brands.Inventory || brands.Sales || [] }));
-            break;
-
-          default:
-            // Default to sales brands for all modules
-            const defaultBrands = brands.Sales || brands.ALL || [];
-            console.log('🔍 Default brands array:', defaultBrands);
-            console.log('🔍 First brand (defaultBrands[0]):', defaultBrands[0]);
-            console.log('🔍 Current selectedBrand before setting:', selectedBrand);
-            setAvailableBrands(defaultBrands);
-            // Always set first brand from the sorted array
-            if (defaultBrands.length > 0) {
-              console.log('✅ Setting selectedBrand to:', defaultBrands[0]);
-              setSelectedBrand(defaultBrands[0]);
-              // Set first brand for all sales module filters
-              setSelectedDrrBrands([defaultBrands[0]]);
-              setSelectedPlatformSummaryBrands([defaultBrands[0]]);
-              setSelectedPlatformReportBrands([defaultBrands[0]]);
-              setSelectedContribBrands([defaultBrands[0]]);
-              setSelectedDailyReportBrands([defaultBrands[0]]);
-            }
-            setBrandsInitialized(true);
-            setHygieneOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));
-            setTrendOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));
-            setCorrelationOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));
-            setCatSpendOptions(prev => ({ ...prev, brands: brands.Ads || brands.Sales || brands.ALL || [] }));
-        }
+        setBrandsInitialized(true);
       } else {
         console.error('Failed to fetch user brands:', response.data.error);
       }
@@ -1602,38 +1536,23 @@ function App() {
           start_date: startDate,
           end_date: endDate,
           brand: selectedBrand
-        },
-        timestamp: new Date().toISOString()
+        }
       });
       setLoading(true);
-      setError(null); // Clear any previous errors
+      setError(null);
       const params = {};
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
       if (selectedBrand) params.brand = selectedBrand;
       const response = await api.get('/consolidated-data/', { params });
       if (response.data.success) {
-        console.log('Consolidated data:', response.data.data);
         setData(response.data.data);
-        setTotalGrowthRate(response.data.total_growth_rate);
-        setTotalCitiesLiveOverall(response.data.total_cities_live || 0);
-        setTotalArticlesOverall(response.data.total_articles || 0);
-        setAvailableOverallPlatforms(response.data.platforms || []);
-//        setAvailableBrands(response.data.brands || []);
-        setError(null); // Clear error on successful response
       } else {
         setError(response.data.error);
       }
     } catch (err) {
-      // Handle authentication errors gracefully
-      if (isAuthError(err)) {
-        // Don't show error for auth issues, let the interceptor handle it
-        console.log('Authentication error in fetchData, handled by interceptor');
-      } else {
-        // Show detailed backend error if available for non-auth errors
-        const errorMessage = err.response?.data?.error || err.message;
-        setError(`Failed to fetch data: ${errorMessage}`);
-      }
+      const errorMessage = err.response?.data?.error || err.message;
+      setError(`Failed to fetch: ${errorMessage}`);
     } finally {
       setLoading(false);
     }
@@ -1641,15 +1560,6 @@ function App() {
 
   const fetchTargetData = async () => {
     try {
-      console.log('🌐 API CALL - fetchTargetData() called', {
-        endpoint: '/sales-target-data/',
-        params: {
-          start_date: startDate,
-          end_date: endDate,
-          brand: selectedBrand
-        },
-        timestamp: new Date().toISOString()
-      });
       setTargetLoading(true);
       setTargetError(null); // Clear any previous errors
       const params = {};
@@ -2657,43 +2567,40 @@ function App() {
 
   if (!authToken) {
     return (
-      <UserBrandsProvider>
-        <ThemeProvider>
-          <div className="App">
-            <header className="App-header">
-              <div className="header-content">
-                <h1>NuvrOS</h1>
-                <p>Please {authView === 'login' ? 'sign in' : 'sign up'} to continue</p>
-              </div>
-              <div className="header-actions">
-                <ThemeToggle />
-              </div>
-            </header>
-            <main className="App-main">
-              <AuthCard
-                authView={authView}
-                setAuthView={setAuthView}
-                authError={authError}
-                authLoading={authLoading}
-                authForm={authForm}
-                onAuthChange={onAuthChange}
-                onLogin={doLogin}
-                onSignup={doSignup}
-              />
-            </main>
-          </div>
-        </ThemeProvider>
-      </UserBrandsProvider>
+      <ThemeProvider>
+        <div className="App">
+          <header className="App-header">
+            <div className="header-content">
+              <h1>NuvrOS</h1>
+              <p>Please {authView === 'login' ? 'sign in' : 'sign up'} to continue</p>
+            </div>
+            <div className="header-actions">
+              <ThemeToggle />
+            </div>
+          </header>
+          <main className="App-main">
+            <AuthCard
+              authView={authView}
+              setAuthView={setAuthView}
+              authError={authError}
+              authLoading={authLoading}
+              authForm={authForm}
+              onAuthChange={onAuthChange}
+              onLogin={doLogin}
+              onSignup={doSignup}
+            />
+          </main>
+        </div>
+      </ThemeProvider>
     );
   }
 
   return (
-    <UserBrandsProvider>
-      <ThemeProvider>
-        <div className="App">
-          <Header tokenRefreshed={tokenRefreshed}>
-            <ThemeToggle />
-          </Header>
+    <ThemeProvider>
+      <div className="App">
+        <Header tokenRefreshed={tokenRefreshed}>
+          <ThemeToggle />
+        </Header>
 
       <main className="App-main">
         <div className="layout">
@@ -2725,9 +2632,6 @@ function App() {
                 endDate={endDate}
                 setStartDate={setStartDate}
                 setEndDate={setEndDate}
-                selectedBrand={selectedBrand}
-                availableBrands={availableBrands}
-                setSelectedBrand={setSelectedBrand}
                 onRefresh={fetchData}
                 onRefreshTargets={fetchTargetData}
                 onDownload={handleDownloadSalesSummary}
@@ -2764,7 +2668,6 @@ function App() {
                   manufacturing_cities: availableManufacturingCities,
                   categories: availableCategories,
                   sub_categories: availableSubCategories,
-                  brands: availableBrands,
                 }}
                 onChangeFilters={(next) => {
                   // Comprehensive cascading filter logic for DRR Report (multi-select arrays)
@@ -2794,9 +2697,6 @@ function App() {
                     const changed = JSON.stringify(newPlatforms) !== JSON.stringify(selectedDrrPlatforms);
                     setSelectedDrrPlatforms(newPlatforms);
                     if (changed) {
-                      setSelectedDrrCities([]);
-                      setSelectedDrrSupplySources([]);
-                      setSelectedDrrManufacturingCities([]);
                       setSelectedDrrCategories([]);
                       setSelectedDrrSubCategories([]);
                     }
@@ -2854,7 +2754,7 @@ function App() {
                 onSort={(key) => handleSort('platformSummary', key)}
                 sortArrow={(key) => sortArrow('platformSummary', key)}
                 filters={{ startDate: platformSummaryStartDate, endDate: platformSummaryEndDate, platform: selectedPlatformSummary || [], city: selectedPlatformSummaryCity || [], supply_source: selectedPlatformSummarySupplySource || [], category: selectedPlatformSummaryCategory || [], manufacturing_city: selectedPlatformSummaryManufacturingCity || [], brand: selectedPlatformSummaryBrands || [] }}
-                options={{ platforms: availablePlatformsSummary, cities: availablePlatformSummaryCities, supply_sources: availablePlatformSummarySupplySources, categories: availablePlatformSummaryCategories, brands: availableBrands, manufacturing_cities: availablePlatformSummaryManufacturingCities }}
+                options={{ platforms: availablePlatformsSummary, cities: availablePlatformSummaryCities, supply_sources: availablePlatformSummarySupplySources, categories: availablePlatformSummaryCategories, manufacturing_cities: availablePlatformSummaryManufacturingCities }}
                 onChangeFilters={(next) => {
                   // Comprehensive cascading filter logic for Platform Summary
                   if (Object.prototype.hasOwnProperty.call(next, 'startDate')) {
@@ -2923,7 +2823,7 @@ function App() {
                   
                 }}
                 onRefresh={fetchPlatformSummaryData}
-                onDownload={handleDownloadPlatformSummary}
+                options={{ platforms: availablePlatformsSummary, cities: availablePlatformSummaryCities, supply_sources: availablePlatformSummarySupplySources, categories: availablePlatformSummaryCategories, manufacturing_cities: availablePlatformSummaryManufacturingCities }}
                 isDownloading={downloadLoading.platformSummary}
                 onCategoryDrilldown={handleCategoryDrilldown}
                 drilldownData={drilldownData}
@@ -2954,7 +2854,7 @@ function App() {
                 sortArrowWeekly={(key) => sortArrow('weekly', key)}
                 sortArrowMonthly={(key) => sortArrow('monthly', key)}
                 filters={{ month_start: platformReportMonthStart, month_end: platformReportMonthEnd, platform: selectedPlatformReport, city: selectedPlatformReportCity, supply_source: selectedPlatformReportSupplySource, manufacturing_city: selectedPlatformReportManufacturingCity, category: selectedPlatformReportCategory, metric: selectedMetricReport, brand: selectedPlatformReportBrands || [] }}
-                options={{ platforms: availablePlatformsReport, cities: availablePlatformReportCities, supply_sources: availablePlatformReportSupplySources, manufacturing_cities: availablePlatformReportManufacturingCities, categories: availablePlatformReportCategories, brands: availableBrands }}
+                options={{ platforms: availablePlatformsReport, cities: availablePlatformReportCities, supply_sources: availablePlatformReportSupplySources, manufacturing_cities: availablePlatformReportManufacturingCities, categories: availablePlatformReportCategories }}
                 onChangeFilters={(next) => {
                   // Comprehensive cascading filter logic for Sales Performance
                   if (Object.prototype.hasOwnProperty.call(next, 'month_start')) {
@@ -3023,7 +2923,7 @@ function App() {
                       ...brandFilter
                     });
                   }
-                  
+
                   if (Object.prototype.hasOwnProperty.call(next, 'manufacturing_city')) {
                     setSelectedPlatformReportManufacturingCity(next.manufacturing_city);
                     // Manufacturing city affects category options
@@ -3066,7 +2966,7 @@ function App() {
                 onSort={(key) => handleSort('salesContribution', key)}
                 sortArrow={(key) => sortArrow('salesContribution', key)}
                 filters={{ startDate: contribStartDate, endDate: contribEndDate, platforms: selectedContribPlatforms, city: selectedContribCity, supply_source: selectedContribSupplySource, manufacturing_city: selectedContribManufacturingCities, category: selectedContribCategory, sub_category: selectedContribSubCategory, brand: selectedContribBrands || [] }}
-                options={{ platforms: availableContribPlatforms, cities: availableContribCities, supply_sources: availableContribSupplySources, manufacturing_cities: availableContribManufacturingCities, categories: availableContribCategories, sub_categories: availableContribSubCategories, brands: availableBrands }}
+                options={{ platforms: availableContribPlatforms, cities: availableContribCities, supply_sources: availableContribSupplySources, manufacturing_cities: availableContribManufacturingCities, categories: availableContribCategories, sub_categories: availableContribSubCategories }}
                 onChangeFilters={(next) => {
                   // Comprehensive cascading filter logic for Sales Contribution
                   if (Object.prototype.hasOwnProperty.call(next, 'startDate')) {
@@ -3156,7 +3056,7 @@ function App() {
                 metric={selectedDailyReportMetric}
                 setMetric={setSelectedDailyReportMetric}
                 filters={{ startDate: dailyReportStartDate, endDate: dailyReportEndDate, platform: Array.isArray(selectedDailyReportPlatform) ? selectedDailyReportPlatform : (selectedDailyReportPlatform ? [selectedDailyReportPlatform] : []), brand: selectedDailyReportBrands || [], city: selectedDailyReportCities || [], supply_source: selectedDailyReportSupplySources || [], manufacturing_city: selectedDailyReportManufacturingCities || [], category: selectedDailyReportCategories || [], sub_category: selectedDailyReportSubCategories || [] }}
-                options={{ platforms: availableDailyReportPlatforms, brands: availableBrands, cities: availableDailyReportCities, supply_sources: availableDailyReportSupplySources, manufacturing_cities: availableDailyReportManufacturingCities, categories: availableDailyReportCategories, sub_categories: availableDailyReportSubCategories }}
+                options={{ platforms: availableDailyReportPlatforms, cities: availableDailyReportCities, supply_sources: availableDailyReportSupplySources, manufacturing_cities: availableDailyReportManufacturingCities, categories: availableDailyReportCategories, sub_categories: availableDailyReportSubCategories }}
                 onChangeFilters={(next) => {
                   if (Object.prototype.hasOwnProperty.call(next, 'startDate')) setDailyReportStartDate(next.startDate);
                   if (Object.prototype.hasOwnProperty.call(next, 'endDate')) setDailyReportEndDate(next.endDate);
@@ -3230,10 +3130,10 @@ function App() {
                 loading={invMovLoading}
                 error={invMovError}
                 filters={{ query_date: invMovDate, brand: selectedBrand, supply_source: invMovSupply }}
-                options={{ brands: availableBrands, supply_sources: availablePlatformReportSupplySources }}
+                options={{ supply_sources: availablePlatformReportSupplySources }}
                 onChangeFilters={(next) => {
                   if (Object.prototype.hasOwnProperty.call(next, 'query_date')) setInvMovDate(next.query_date);
-                  if (Object.prototype.hasOwnProperty.call(next, 'brand')) setSelectedBrand(next.brand);
+                  // Brand is now managed globally by UserBrandsContext
                   if (Object.prototype.hasOwnProperty.call(next, 'supply_source')) setInvMovSupply(next.supply_source);
                 }}
                 onRefresh={fetchInventoryMovements}
@@ -3355,9 +3255,18 @@ function App() {
       </main>
     </div>
     </ThemeProvider>
+  );
+} // Close AppContent function
+
+// Wrapper component that provides UserBrandsProvider context from the outside
+function App() {
+  return (
+    <UserBrandsProvider>
+      <AppContent />
     </UserBrandsProvider>
   );
 }
+
 
 export default App;
 
