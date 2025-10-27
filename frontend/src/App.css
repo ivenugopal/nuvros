@@ -1924,12 +1924,11 @@
 }
 
 .platform-summary-table tbody tr {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .platform-summary-table tbody tr:hover {
-  transform: translateY(-4px) scale(1.01);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
 }
 
 .platform-summary-table tbody tr:hover td {
