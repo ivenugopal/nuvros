@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../services/api';
 
 const UserBrandsContext = createContext();
@@ -23,15 +23,26 @@ export const UserBrandsProvider = ({ children }) => {
   // Global selected brand state
   const [selectedBrand, setSelectedBrand] = useState('');
 
+  // Use ref to track if brands have been fetched to prevent duplicate calls
+  const hasFetchedRef = useRef(false);
+
   // Fetch brands from API
-  const fetchBrands = async () => {
+  const fetchBrands = useCallback(async () => {
+    // Prevent duplicate API calls
+    if (hasFetchedRef.current) {
+      console.log('Brands already fetched, skipping duplicate API call');
+      return;
+    }
+
     const token = localStorage.getItem('token');
     if (!token) {
       return; // Don't fetch if not authenticated
     }
 
     try {
+      hasFetchedRef.current = true; // Mark as fetched before the call
       setUserBrands(prev => ({ ...prev, loading: true, error: null }));
+      console.log('Fetching user brands from API...');
       const response = await api.get('/user-brands/');
 
       if (response.data.success) {
@@ -63,13 +74,14 @@ export const UserBrandsProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('Error fetching user brands:', err);
+      hasFetchedRef.current = false; // Reset flag on error so it can be retried
       setUserBrands(prev => ({
         ...prev,
         loading: false,
         error: err.response?.data?.error || err.message || 'Failed to fetch brands'
       }));
     }
-  };
+  }, []); // Empty dependency array since we're using useCallback
 
   // Fetch brands when component mounts and token is available
   useEffect(() => {

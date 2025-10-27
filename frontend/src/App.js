@@ -1,6 +1,6 @@
 // Add ESLint disable comment at the top to suppress react-hooks/exhaustive-deps and no-unused-vars warnings
 /* eslint-disable react-hooks/exhaustive-deps, no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 import { api, apiBaseURL, setupAuthInterceptors, startProactiveRefresh } from './services/api';
@@ -256,6 +256,9 @@ function AppContent() {
   const [contribDropdownOpen, setContribDropdownOpen] = useState(false);
   const [contribSearch, setContribSearch] = useState('');
   
+  // Ref to track ongoing API calls and prevent duplicates
+  const contribFetchingRef = useRef(false);
+
   // Daily Report state
   const [dailyReportData, setDailyReportData] = useState([]);
   const [dailyReportLoading, setDailyReportLoading] = useState(false);
@@ -651,9 +654,7 @@ function AppContent() {
   // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
     if (!authToken || !brandsInitialized) return;
-    if (activeTab === 'salesContribution') {
-      fetchSalesContribution();
-    }
+    // Note: salesContribution is handled in its own useEffect below (line ~679)
     if (activeTab === 'platformReport') {
       console.log('🔥 API TRIGGER - SalesPerformance tab/view changed:', {
         trigger: 'SalesPerformance useEffect',
@@ -1248,7 +1249,15 @@ function AppContent() {
   const clearSort = (tableKey) => setSortState((prev) => ({ ...prev, [tableKey]: { key: null, direction: 'asc' } }));
 
   const fetchSalesContribution = async () => {
+    // Prevent duplicate API calls
+    if (contribFetchingRef.current) {
+      console.log('⚠️ SalesContribution API call already in progress, skipping duplicate');
+      return;
+    }
+
     try {
+      contribFetchingRef.current = true;
+      console.log('🔥 API CALL - Fetching SalesContribution data');
       setContribLoading(true);
       setContribError(null);
       const params = {
@@ -1285,6 +1294,7 @@ function AppContent() {
       setContribError(`Failed to fetch Sales Contribution: ${errorMessage}`);
     } finally {
       setContribLoading(false);
+      contribFetchingRef.current = false;
     }
   };
 
