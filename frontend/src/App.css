@@ -316,7 +316,6 @@
   border-color: #667eea;
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1),
     0 4px 12px rgba(102, 126, 234, 0.15);
-  transform: translateY(-1px);
   background: white;
 }
 
@@ -324,7 +323,6 @@
 .date-input-group input[type="month"]:hover,
 .platform-select:hover {
   border-color: rgba(102, 126, 234, 0.4);
-  transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
   background: rgba(255, 255, 255, 0.95);
   color: #333;
@@ -769,7 +767,6 @@
 
 .toggle-btn:not(.active):hover {
   color: #5a67d8;
-  transform: translateY(-1px);
 }
 
 .toggle-btn:not(.active):hover::before {
@@ -778,7 +775,6 @@
 
 .toggle-btn.active {
   color: #ffffff;
-  transform: translateY(-2px);
   z-index: 2;
   font-weight: 800;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
@@ -971,14 +967,12 @@
 .auth-tab:hover {
   background: rgba(102, 126, 234, 0.12);
   color: #667eea;
-  transform: translateY(-1px);
 }
 
 .auth-tab.active {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  transform: translateY(-1px);
 }
 
 .tab-icon {
@@ -1081,7 +1075,6 @@
   border-color: #667eea;
   background: white;
   box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1), 0 4px 12px rgba(102, 126, 234, 0.15);
-  transform: translateY(-1px);
 }
 
 .form-input:hover:not(:focus) {
@@ -1132,12 +1125,12 @@
 }
 
 .auth-submit-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  filter: brightness(1.05);
 }
 
 .auth-submit-btn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: scale(0.98);
 }
 
 .auth-submit-btn:disabled {
@@ -1272,13 +1265,13 @@
 }
 
 .theme-toggle-btn:hover {
-  transform: translateY(-2px) scale(1.05);
-  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.3);
+  filter: brightness(1.1);
 }
 
 .theme-toggle-btn:active {
-  transform: translateY(0) scale(0.95);
+  transform: scale(0.95);
 }
 
 .theme-icon {
@@ -1286,7 +1279,7 @@
 }
 
 .theme-toggle-btn:hover .theme-icon {
-  transform: rotate(180deg);
+  transform: scale(1.1);
 }
 
 /* Futuristic Table Styles */
@@ -1382,7 +1375,6 @@
 
 .table-header-text:hover {
   opacity: 0.9;
-  transform: translateY(-1px);
 }
 
 .table-header-actions {
@@ -1600,7 +1592,7 @@
 }
 
 .data-table tbody tr {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .data-table tbody tr:hover {
@@ -1609,8 +1601,7 @@
     rgba(102, 126, 234, 0.05) 0%,
     rgba(118, 75, 162, 0.05) 100%
   );
-  transform: translateY(-2px);
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
 }
 
 .data-table tbody tr:hover td {
@@ -1740,12 +1731,11 @@
 }
 
 .sales-summary-table tbody tr {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 .sales-summary-table tbody tr:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
 }
 
 .sales-summary-table tbody tr:hover td {
@@ -1970,8 +1960,7 @@
     rgba(102, 126, 234, 0.12) 0%,
     rgba(118, 75, 162, 0.06) 100%
   );
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
 }
 
 .platform-summary-table .clickable {
@@ -2030,8 +2019,8 @@
 
 .back-btn:hover {
   background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(102, 126, 234, 0.3);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  filter: brightness(1.05);
 }
 
 .drilldown-header h3 {
@@ -2208,12 +2197,12 @@
 }
 
 .sidebar-toggle:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+  box-shadow: 0 3px 10px rgba(102, 126, 234, 0.35);
+  filter: brightness(1.05);
 }
 
 .sidebar-toggle:active {
-  transform: translateY(0);
+  transform: scale(0.98);
   box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
 }
 
@@ -2519,13 +2508,13 @@
 }
 
 .sidebar-logout-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.35);
+  box-shadow: 0 3px 10px rgba(220, 53, 69, 0.35);
   background: linear-gradient(135deg, #c82333 0%, #a02026 100%);
+  filter: brightness(1.05);
 }
 
 .sidebar-logout-btn:active {
-  transform: translateY(0);
+  transform: scale(0.98);
   box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
 }
 
@@ -3565,8 +3554,9 @@
 [data-theme="dark"] .refresh-btn:hover,
 [data-theme="dark"] .retry-btn:hover {
   background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
-  box-shadow: 0 4px 15px rgba(74, 85, 104, 0.35);
+  box-shadow: 0 3px 12px rgba(74, 85, 104, 0.35);
   color: #ffffff;
+  filter: brightness(1.1);
 }
 
 [data-theme="dark"] .btn-ghost {
@@ -4203,13 +4193,11 @@
   border-color: #667eea;
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1),
     0 4px 12px rgba(102, 126, 234, 0.15);
-  transform: translateY(-1px);
 }
 
 .filters-toolbar input[type="date"]:hover,
 .filters-toolbar select:hover {
   border-color: rgba(102, 126, 234, 0.4);
-  transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
   color: #333;
   background: rgba(255, 255, 255, 0.95);
@@ -4251,12 +4239,12 @@
 }
 
 .refresh-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  filter: brightness(1.05);
 }
 
 .refresh-btn:active {
-  transform: translateY(0);
+  transform: scale(0.98);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
 }
 
@@ -4515,12 +4503,12 @@
 }
 
 .apply-filters-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  filter: brightness(1.05);
 }
 
 .apply-filters-btn:active {
-  transform: translateY(0);
+  transform: scale(0.98);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.25);
 }
 
@@ -4582,8 +4570,8 @@
 }
 
 .toggle-filters-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+  box-shadow: 0 3px 10px rgba(79, 70, 229, 0.4);
+  filter: brightness(1.05);
 }
 
 .filters-panel {
@@ -4619,7 +4607,6 @@
 .filters-panel input[type="date"]:hover,
 .filters-panel select:hover {
   border-color: rgba(102, 126, 234, 0.4);
-  transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
   background: rgba(255, 255, 255, 0.95);
   color: #333;
@@ -4631,7 +4618,6 @@
   border-color: #667eea;
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1),
     0 4px 12px rgba(102, 126, 234, 0.15);
-  transform: translateY(-1px);
 }
 
 .filters-panel input[type="date"]::-webkit-calendar-picker-indicator {
