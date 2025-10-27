@@ -67,10 +67,14 @@ export const UserBrandsProvider = ({ children }) => {
           lastFetched: new Date().toISOString()
         });
 
-        // Set first brand as default if not already set
+        // Always set first brand as default when fetching brands (reset on login)
         const defaultBrands = brands.Sales || brands.ALL || brands || [];
-        if (defaultBrands.length > 0 && !selectedBrandRef.current) {
+        if (defaultBrands.length > 0) {
+          console.log('🔄 Setting default brand to first available:', defaultBrands[0]);
           setSelectedBrand(defaultBrands[0]);
+        } else {
+          console.log('⚠️ No brands available, clearing selected brand');
+          setSelectedBrand('');
         }
 
         // Store in localStorage for persistence
@@ -128,12 +132,36 @@ export const UserBrandsProvider = ({ children }) => {
     setUserBrands(prev => ({ ...prev, error, loading: false }));
   };
 
+  // Force refetch brands (useful after login)
+  const refetchBrands = useCallback(async () => {
+    console.log('🔄 Force refetching brands...');
+    hasFetchedRef.current = false; // Reset the flag to allow refetch
+    await fetchBrands();
+  }, [fetchBrands]);
+
+  // Reset all brand state (useful on logout)
+  const resetBrands = useCallback(() => {
+    console.log('🔄 Resetting all brand state...');
+    hasFetchedRef.current = false; // Reset the fetch flag
+    setSelectedBrand(''); // Clear selected brand
+    setUserBrands({
+      sales: [],
+      all: [],
+      loading: false,
+      error: null,
+      lastFetched: null
+    });
+    localStorage.removeItem('userBrands');
+  }, []);
+
   const value = {
     userBrands,
     updateUserBrands,
     setLoading,
     setError,
     fetchBrands, // Expose fetch function
+    refetchBrands, // Expose refetch function for login scenarios
+    resetBrands, // Expose reset function for logout scenarios
     // Convenience getters
     salesBrands: userBrands.sales,
     allBrands: userBrands.all,

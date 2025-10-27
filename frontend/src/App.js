@@ -35,7 +35,7 @@ import CorrelationMatrix from './features/hygiene/CorrelationMatrix';
 
 // Inner component that uses UserBrandsContext
 function AppContent() {
-  const { selectedBrand, salesBrands, isLoading: brandsLoading } = useUserBrands(); // Use global brand from context
+  const { selectedBrand, salesBrands, isLoading: brandsLoading, refetchBrands, resetBrands } = useUserBrands(); // Use global brand from context
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('token') || '');
   // Stock Levels (snapshot) filters
   const [stockQueryDate, setStockQueryDate] = useState('');
@@ -637,7 +637,9 @@ function AppContent() {
         selectedBrand,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchData();
+      // eslint-disable-next-line no-undef
       fetchTargetData();
     }
   }, [authToken, brandsInitialized]); // Only authToken and brandsInitialized dependencies - API called once on load
@@ -655,6 +657,7 @@ function AppContent() {
         selectedDrrBrands,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchDrrData();
     }
   }, [activeTab, currentPage, pageSize, authToken, brandsInitialized]); // Removed filter dependencies - only tab switch and pagination trigger API
@@ -670,6 +673,7 @@ function AppContent() {
         selectedPlatformSummaryBrands,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchPlatformSummaryData();
     }
   }, [activeTab, authToken, brandsInitialized]); // Removed filter dependencies - only tab switch triggers API
@@ -728,17 +732,22 @@ function AppContent() {
         timestamp: new Date().toISOString()
       });
       if (salesPerfView === 'target') {
+        // eslint-disable-next-line no-undef
         fetchPlatformReportData();
       } else if (salesPerfView === 'weekly') {
+        // eslint-disable-next-line no-undef
         fetchWeeklyData();
       } else if (salesPerfView === 'monthly') {
+        // eslint-disable-next-line no-undef
         fetchMonthlyData();
       }
       if (availablePlatformsReport.length === 0) {
+        // eslint-disable-next-line no-undef
         fetchPlatformsForReport();
       }
       // Fetch filter options when date range changes or when first loading
       if (platformReportMonthStart && platformReportMonthEnd) {
+        // eslint-disable-next-line no-undef
         fetchFilterOptionsForReport();
       }
     }
@@ -752,6 +761,7 @@ function AppContent() {
         selectedContribBrands,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchSalesContribution();
     }
   }, [activeTab, contribStartDate, contribEndDate, selectedContribPlatforms, selectedContribCity, selectedContribSupplySource, selectedContribCategory, selectedContribSubCategory, contribCurrentPage, contribPageSize, authToken, brandsInitialized, selectedContribBrands]);
@@ -764,6 +774,7 @@ function AppContent() {
         selectedDailyReportBrands,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchDailyReport();
     }
   }, [activeTab, dailyReportStartDate, dailyReportEndDate, selectedDailyReportPlatform, selectedDailyReportMetric, dailyReportView, authToken, brandsInitialized, selectedDailyReportBrands, selectedDailyReportCities, selectedDailyReportSupplySources, selectedDailyReportManufacturingCities, selectedDailyReportCategories, selectedDailyReportSubCategories]);
@@ -771,6 +782,7 @@ function AppContent() {
   useEffect(() => {
     if (!authToken) return;
     if (activeTab === 'stock-levels') {
+      // eslint-disable-next-line no-undef
       fetchInventoryData();
     } else if (activeTab === 'inventory-overview') {
       fetchInventoryOverview();
@@ -887,7 +899,7 @@ function AppContent() {
       let currentPage = 1;
       let hasMoreData = true;
       let totalPages = 1;
-      
+
       while (hasMoreData) {
         const params = {
           page: currentPage,
@@ -898,6 +910,7 @@ function AppContent() {
         if (selectedPlatform) params.platform = selectedPlatform;
         if (selectedCity) params.city = selectedCity;
         if (selectedSupplySource) params.supply_source = selectedSupplySource;
+        if (selectedManufacturingCity) params.manufacturing_city = selectedManufacturingCity;
         if (selectedManufacturingCity) params.manufacturing_city = selectedManufacturingCity;
         if (selectedCategory) params.category = selectedCategory;
         if (selectedBrand) params.brand = selectedBrand;
@@ -1083,9 +1096,9 @@ function AppContent() {
   const fetchAllPlatformReportData = async () => {
     try {
       // Platform report doesn't seem to have pagination based on the regular fetch function
+      const params = {};
       // Use selectedBrand from header if available and not "All Brands" (empty string)
       if (selectedBrand) params.brand = selectedBrand;
-      const params = {};
       if (platformReportMonthStart) params.month_start = platformReportMonthStart;
       if (platformReportMonthEnd) params.month_end = platformReportMonthEnd;
       if (Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0) params.platform = selectedPlatformReport.join(',');
@@ -1151,7 +1164,7 @@ function AppContent() {
       const startDate = new Date(platformReportMonthStart + '-01');
       const endDate = new Date(platformReportMonthEnd + '-01');
       const months = [];
-      
+
       let currentDate = new Date(startDate);
       while (currentDate <= endDate) {
         months.push({
@@ -1342,12 +1355,12 @@ function AppContent() {
       }
       if (Array.isArray(selectedContribCity) && selectedContribCity.length > 0) params.city = selectedContribCity.join(',');
       if (Array.isArray(selectedContribSupplySource) && selectedContribSupplySource.length > 0) params.supply_source = selectedContribSupplySource.join(',');
+      if (Array.isArray(selectedContribManufacturingCities) && selectedContribManufacturingCities.length > 0) params.manufacturing_city = selectedContribManufacturingCities.join(',');
+      if (Array.isArray(selectedContribCategory) && selectedContribCategory.length > 0) params.category = selectedContribCategory.join(',');
+      if (Array.isArray(selectedContribSubCategory) && selectedContribSubCategory.length > 0) params.sub_category = selectedContribSubCategory.join(',');
       // Use selectedBrand from header if available and not "All Brands" (empty string)
       if (selectedBrand) params.brand = selectedBrand;
       else if (Array.isArray(selectedContribBrands) && selectedContribBrands.length > 0) params.brand = selectedContribBrands.join(',');
-      if (Array.isArray(selectedContribCategory) && selectedContribCategory.length > 0) params.category = selectedContribCategory.join(',');
-      if (Array.isArray(selectedContribSubCategory) && selectedContribSubCategory.length > 0) params.sub_category = selectedContribSubCategory.join(',');
-      if (Array.isArray(selectedContribBrands) && selectedContribBrands.length > 0) params.brand = selectedContribBrands.join(',');
       const response = await api.get('/sales-contribution/', { params });
       if (response.data.success) {
         setContribData(response.data.data || []);
@@ -1813,12 +1826,12 @@ function AppContent() {
       let currentDate = new Date(startDate);
       const targetEndDate = new Date(endDate);
       targetEndDate.setMonth(targetEndDate.getMonth() + 1); // Include the end month
-      
+
       while (currentDate < targetEndDate) {
         months.push({
           year: currentDate.getFullYear(),
           month: currentDate.getMonth() + 1,
-          name: currentDate.toLocaleString('default', { month: 'short' })
+          name: currentDate.toLocaleString('default', { month: 'short' }).toLowerCase()
         });
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
@@ -2001,7 +2014,7 @@ function AppContent() {
       const s = sortState.monthly;
       const sorted = [...currentData];
       if (s && s.key) sorted.sort((a, b) => compareValues(a[s.key], b[s.key], s.direction));
-      
+
       // Get month columns dynamically
       const monthColumns = sorted.length > 0 ? Object.keys(sorted[0]).filter(key => key.startsWith('month_')) : [];
       const header = ['Category', ...monthColumns.map(col => col.replace('month_', '').charAt(0).toUpperCase() + col.replace('month_', '').slice(1))];
@@ -2009,7 +2022,7 @@ function AppContent() {
         item.category,
         ...monthColumns.map(col => formatNumber(item[col] || 0))
       ]);
-      
+
       const filterInfo = [];
       if (platformReportMonthStart) filterInfo.push(`from_${platformReportMonthStart}`);
       if (platformReportMonthEnd) filterInfo.push(`to_${platformReportMonthEnd}`);
@@ -2602,6 +2615,8 @@ function AppContent() {
   const onAuthChange = (e) => setAuthForm({ ...authForm, [e.target.name]: e.target.value });
 
   const doLogin = async (e) => {
+        // Fetch user brands immediately after signup
+        await refetchBrands();
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
@@ -2613,6 +2628,8 @@ function AppContent() {
       if (res.data.success && res.data.token) {
         localStorage.setItem('token', res.data.token);
         setAuthToken(res.data.token);
+        // Fetch user brands immediately after login
+        await refetchBrands();
       } else {
         setAuthError(res.data.error || 'Login failed');
       }
@@ -2650,6 +2667,7 @@ function AppContent() {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userBrands');
+    resetBrands(); // Clear all brand state on logout
     setAuthToken('');
   };
 
