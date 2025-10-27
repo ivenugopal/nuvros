@@ -1,4 +1,5 @@
 import React from 'react';
+import BrandSelector from '../common/BrandSelector';
 
 const Header = ({ tokenRefreshed, children }) => (
   <header className="App-header">
@@ -10,6 +11,7 @@ const Header = ({ tokenRefreshed, children }) => (
       <div className="token-refresh-notification">✅ Session refreshed successfully</div>
     )}
     <div className="header-actions">
+      <BrandSelector />
       {children}
     </div>
   </header>

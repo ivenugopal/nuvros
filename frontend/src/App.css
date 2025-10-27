@@ -1232,51 +1232,69 @@
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   color: white;
   position: relative;
   overflow: hidden;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  transform: translateZ(0);
 }
 
 .theme-toggle-btn::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: -100%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
   width: 100%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
-  transition: left 0.5s;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .theme-toggle-btn:hover::before {
-  left: 100%;
+  transform: translate(-50%, -50%) scale(1.2);
 }
 
 .theme-toggle-btn:hover {
   background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .theme-toggle-btn:active {
-  transform: scale(0.95);
+  transform: translateZ(0) scale(0.95);
 }
 
 .theme-icon {
-  transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  transition: transform 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.2rem;
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-font-smoothing: antialiased;
+  transform: translateZ(0);
+  z-index: 1;
+}
+
+/* Rotation effect on click */
+.theme-toggle-btn:active .theme-icon {
+  transform: translateZ(0) rotate(360deg);
 }
 
 .theme-toggle-btn:hover .theme-icon {

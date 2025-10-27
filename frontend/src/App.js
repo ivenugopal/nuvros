@@ -2657,41 +2657,44 @@ function App() {
 
   if (!authToken) {
     return (
-      <ThemeProvider>
-        <div className="App">
-          <header className="App-header">
-            <div className="header-content">
-              <h1>NuvrOS</h1>
-              <p>Please {authView === 'login' ? 'sign in' : 'sign up'} to continue</p>
-            </div>
-            <div className="header-actions">
-              <ThemeToggle />
-            </div>
-          </header>
-          <main className="App-main">
-            <AuthCard
-              authView={authView}
-              setAuthView={setAuthView}
-              authError={authError}
-              authLoading={authLoading}
-              authForm={authForm}
-              onAuthChange={onAuthChange}
-              onLogin={doLogin}
-              onSignup={doSignup}
-            />
-          </main>
-        </div>
-      </ThemeProvider>
+      <UserBrandsProvider>
+        <ThemeProvider>
+          <div className="App">
+            <header className="App-header">
+              <div className="header-content">
+                <h1>NuvrOS</h1>
+                <p>Please {authView === 'login' ? 'sign in' : 'sign up'} to continue</p>
+              </div>
+              <div className="header-actions">
+                <ThemeToggle />
+              </div>
+            </header>
+            <main className="App-main">
+              <AuthCard
+                authView={authView}
+                setAuthView={setAuthView}
+                authError={authError}
+                authLoading={authLoading}
+                authForm={authForm}
+                onAuthChange={onAuthChange}
+                onLogin={doLogin}
+                onSignup={doSignup}
+              />
+            </main>
+          </div>
+        </ThemeProvider>
+      </UserBrandsProvider>
     );
   }
 
   return (
-    <ThemeProvider>
-      <div className="App">
-        <Header tokenRefreshed={tokenRefreshed}>
-          <ThemeToggle />
-        </Header>
-      
+    <UserBrandsProvider>
+      <ThemeProvider>
+        <div className="App">
+          <Header tokenRefreshed={tokenRefreshed}>
+            <ThemeToggle />
+          </Header>
+
       <main className="App-main">
         <div className="layout">
           <Sidebar
@@ -3352,6 +3355,7 @@ function App() {
       </main>
     </div>
     </ThemeProvider>
+    </UserBrandsProvider>
   );
 }
 
