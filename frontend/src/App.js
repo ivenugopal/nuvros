@@ -75,13 +75,16 @@ function AppContent() {
       if (invOvPlatform && invOvPlatform.length > 0 && !invOvPlatform.includes('All Platforms')) {
         params.platform = invOvPlatform[0];
       }
-      if (invOvBrand && invOvBrand.length > 0) {
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) {
+        params.brand = selectedBrand;
+      } else if (invOvBrand && invOvBrand.length > 0) {
         params.brand = invOvBrand[0];
       }
       if (invOvSupply && invOvSupply.length > 0 && !invOvSupply.includes('All')) {
         params.supply_source = invOvSupply[0];
       }
-      
+
       const response = await api.get('/inventory-overview/', { params });
       if (response.data?.success) {
         setInvOvData(response.data.data || []);
@@ -449,6 +452,7 @@ function AppContent() {
       const res = await fetchAdsOverview({
         startDate: adsStartDate,
         endDate: adsEndDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
         brand: adsBrand,
         platform: adsPlatform,
         // Top-level view must always be grouped by platform;
@@ -475,7 +479,12 @@ function AppContent() {
       setCatSpendError(null);
       const res = await fetchAdsCategorySpends({ startDate: catSpendStartDate, endDate: catSpendEndDate, brands: catSpendBrands });
       if (res?.success) {
-        setCatSpendData(res);
+      const res = await fetchAdsCategorySpends({
+        startDate: catSpendStartDate,
+        endDate: catSpendEndDate,
+        brands: catSpendBrands,
+        selectedBrand: selectedBrand // Pass selectedBrand from header
+      });
         setCatSpendOptions({ brands: (res?.filters?.brands) || [] });
       } else {
         setCatSpendError(res?.error || 'Failed to fetch');
@@ -494,6 +503,7 @@ function AppContent() {
       const res = await fetchHygieneOverview({
         startDate: hygieneStartDate,
         endDate: hygieneEndDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
         brand: hygieneBrand,
         platform: hygienePlatform,
       });
@@ -518,6 +528,7 @@ function AppContent() {
       setTrendError(null);
       const res = await fetchTrendAnalysis({
         startDate: trendStartDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
         endDate: trendEndDate,
         brand: trendBrand,
         platform: trendPlatform,
@@ -542,6 +553,7 @@ function AppContent() {
       const res = await fetchCorrelationMatrix({
         startDate: correlationStartDate,
         endDate: correlationEndDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
         brand: correlationBrand,
         platform: correlationPlatform,
       });
@@ -565,6 +577,7 @@ function AppContent() {
       const res = await fetchHygieneOverview({
         startDate: hygieneEQCOMStartDate,
         endDate: hygieneEQCOMEndDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
         brand: hygieneEQCOMBrand,
         platform: hygieneEQCOMPlatform,
       });
@@ -890,10 +903,11 @@ function AppContent() {
         if (selectedBrand) params.brand = selectedBrand;
 
         const response = await api.get('/drr-report/', { params });
+
         if (response.data.success && response.data.data) {
           // More memory efficient concatenation
           allData.push(...response.data.data);
-          
+
           // Check if there are more pages
           const pagination = response.data.pagination;
           if (pagination) {
@@ -994,7 +1008,9 @@ function AppContent() {
       const params = {};
       if (platformSummaryStartDate) params.start_date = platformSummaryStartDate;
       if (platformSummaryEndDate) params.end_date = platformSummaryEndDate;
-      if (selectedPlatformSummary) params.platform = selectedPlatformSummary;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
       if (selectedPlatformSummaryCity) params.city = selectedPlatformSummaryCity;
       if (selectedPlatformSummarySupplySource) params.supply_source = selectedPlatformSummarySupplySource;
       if (selectedPlatformSummaryCategory) params.category = selectedPlatformSummaryCategory;
@@ -1067,6 +1083,8 @@ function AppContent() {
   const fetchAllPlatformReportData = async () => {
     try {
       // Platform report doesn't seem to have pagination based on the regular fetch function
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
       const params = {};
       if (platformReportMonthStart) params.month_start = platformReportMonthStart;
       if (platformReportMonthEnd) params.month_end = platformReportMonthEnd;
@@ -1151,12 +1169,13 @@ function AppContent() {
           year,
           month,
           platform: Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0 ? selectedPlatformReport.join(',') : undefined,
+          // Use selectedBrand from header if available and not "All Brands" (empty string)
+          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+            ? selectedPlatformReportBrands.join(',') : undefined),
           city: Array.isArray(selectedPlatformReportCity) && selectedPlatformReportCity.length > 0 ? selectedPlatformReportCity.join(',') : undefined,
           supply_source: Array.isArray(selectedPlatformReportSupplySource) && selectedPlatformReportSupplySource.length > 0 ? selectedPlatformReportSupplySource.join(',') : undefined,
           metric: selectedMetricReport,
-          manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined,
-          brand: Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
-            ? selectedPlatformReportBrands.join(',') : undefined
+          manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined
         };
 
         // Remove undefined values
@@ -1323,7 +1342,9 @@ function AppContent() {
       }
       if (Array.isArray(selectedContribCity) && selectedContribCity.length > 0) params.city = selectedContribCity.join(',');
       if (Array.isArray(selectedContribSupplySource) && selectedContribSupplySource.length > 0) params.supply_source = selectedContribSupplySource.join(',');
-      if (Array.isArray(selectedContribManufacturingCities) && selectedContribManufacturingCities.length > 0) params.manufacturing_city = selectedContribManufacturingCities.join(',');
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (Array.isArray(selectedContribBrands) && selectedContribBrands.length > 0) params.brand = selectedContribBrands.join(',');
       if (Array.isArray(selectedContribCategory) && selectedContribCategory.length > 0) params.category = selectedContribCategory.join(',');
       if (Array.isArray(selectedContribSubCategory) && selectedContribSubCategory.length > 0) params.sub_category = selectedContribSubCategory.join(',');
       if (Array.isArray(selectedContribBrands) && selectedContribBrands.length > 0) params.brand = selectedContribBrands.join(',');
@@ -1356,7 +1377,9 @@ function AppContent() {
       setInventoryError(null);
       // Use the new snapshot endpoint for Stock Levels tab
       const params = {};
-      if (inventoryBrand) params.brand = inventoryBrand;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (inventoryBrand) params.brand = inventoryBrand;
       if (inventoryPlatform) params.platform = inventoryPlatform;
       if (inventoryWarehouseCity) params.supply_source = inventoryWarehouseCity;
       if (inventoryMinStock) params.min_stock = inventoryMinStock;
@@ -1386,11 +1409,23 @@ function AppContent() {
       const params = {};
       if (dailyReportStartDate) params.start_date = dailyReportStartDate;
       if (dailyReportEndDate) params.end_date = dailyReportEndDate;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
       if (Array.isArray(selectedDailyReportPlatform) && selectedDailyReportPlatform.length > 0) params.platform = selectedDailyReportPlatform.join(',');
       else if (typeof selectedDailyReportPlatform === 'string' && selectedDailyReportPlatform) params.platform = selectedDailyReportPlatform;
       if (selectedDailyReportMetric) params.metric = selectedDailyReportMetric;
       if (dailyReportView) params.view = dailyReportView;
-      if (Array.isArray(selectedDailyReportBrands) && selectedDailyReportBrands.length > 0) params.brand = selectedDailyReportBrands.join(',');
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand) params.brand = selectedBrand;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (Array.isArray(selectedDailyReportBrands) && selectedDailyReportBrands.length > 0) params.brand = selectedDailyReportBrands.join(',');
       if (Array.isArray(selectedDailyReportCities) && selectedDailyReportCities.length > 0) params.city = selectedDailyReportCities.join(',');
       if (Array.isArray(selectedDailyReportSupplySources) && selectedDailyReportSupplySources.length > 0) params.supply_source = selectedDailyReportSupplySources.join(',');
       if (Array.isArray(selectedDailyReportManufacturingCities) && selectedDailyReportManufacturingCities.length > 0) params.manufacturing_city = selectedDailyReportManufacturingCities.join(',');
@@ -1584,6 +1619,7 @@ function AppContent() {
       const params = {};
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
+      // Only pass brand if not "All Brands" (empty string)
       if (selectedBrand) params.brand = selectedBrand;
       const response = await api.get('/consolidated-data/', { params });
       if (response.data.success) {
@@ -1595,16 +1631,21 @@ function AppContent() {
       const errorMessage = err.response?.data?.error || err.message;
       setError(`Failed to fetch: ${errorMessage}`);
     } finally {
+      // Only pass brand if not "All Brands" (empty string)
       setLoading(false);
     }
   };
 
   const fetchTargetData = async () => {
+      // Only pass brand if not "All Brands" (empty string)
     try {
       setTargetLoading(true);
       setTargetError(null); // Clear any previous errors
       const params = {};
+      // Only pass brand if not "All Brands" (empty string)
       if (startDate) params.start_date = startDate;
+      // Only pass brand if not "All Brands" (empty string)
+      // Only pass brand if not "All Brands" (empty string)
       if (endDate) params.end_date = endDate;
       if (selectedBrand) params.brand = selectedBrand;
       const response = await api.get('/sales-target-data/', { params });
@@ -1684,8 +1725,9 @@ function AppContent() {
           supply_source: Array.isArray(selectedPlatformReportSupplySource) && selectedPlatformReportSupplySource.length > 0 ? selectedPlatformReportSupplySource.join(',') : undefined,
           metric: selectedMetricReport,
           manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined,
-          brand: Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
-            ? selectedPlatformReportBrands.join(',') : undefined
+          // Use selectedBrand from header if available and not "All Brands" (empty string)
+          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+            ? selectedPlatformReportBrands.join(',') : undefined)
         };
 
         // Remove undefined values
@@ -1776,12 +1818,10 @@ function AppContent() {
         months.push({
           year: currentDate.getFullYear(),
           month: currentDate.getMonth() + 1,
-          name: currentDate.toLocaleString('default', { month: 'short' }).toLowerCase()
+          name: currentDate.toLocaleString('default', { month: 'short' })
         });
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
-      
-      console.log('Fetching monthly data for months:', months);
 
       // Fetch data for each month and combine
       const categoryMap = new Map();
@@ -1796,8 +1836,9 @@ function AppContent() {
           category: selectedPlatformReportCategory,
           metric: selectedMetricReport,
           manufacturing_city: selectedPlatformReportManufacturingCity,
-          brand: Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
-            ? selectedPlatformReportBrands.join(',') : undefined
+          // Use selectedBrand from header if available and not "All Brands" (empty string)
+          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+            ? selectedPlatformReportBrands.join(',') : undefined)
         };
 
         // Remove undefined values
@@ -1973,7 +2014,7 @@ function AppContent() {
       if (platformReportMonthStart) filterInfo.push(`from_${platformReportMonthStart}`);
       if (platformReportMonthEnd) filterInfo.push(`to_${platformReportMonthEnd}`);
       if (Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0) filterInfo.push(`platform_${selectedPlatformReport.join('-')}`);
-      
+
       const file = `monthly_performance_filtered_${filterInfo.join('_')}_${currentData.length}records.xlsx`;
       exportToXlsx(file, [header, ...rows], 'Monthly');
     } finally {
@@ -2046,6 +2087,9 @@ function AppContent() {
       setPlatformSummaryLoading(true);
       setPlatformSummaryError(null);
       const params = {};
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
       if (platformSummaryStartDate) params.start_date = platformSummaryStartDate;
       if (platformSummaryEndDate) params.end_date = platformSummaryEndDate;
       if (Array.isArray(selectedPlatformSummary) && selectedPlatformSummary.length > 0) params.platform = selectedPlatformSummary.join(',');
@@ -2112,7 +2156,7 @@ function AppContent() {
         brand: normalizedBrand,
         category: category
       };
-      
+
       console.log('Drill-down filters being sent:', filters);
       console.log('Selected platform summary brands:', selectedPlatformSummaryBrands);
       console.log('Selected brand:', selectedBrand);
