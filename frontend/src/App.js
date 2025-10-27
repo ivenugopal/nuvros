@@ -887,7 +887,8 @@ function AppContent() {
         if (selectedSupplySource) params.supply_source = selectedSupplySource;
         if (selectedManufacturingCity) params.manufacturing_city = selectedManufacturingCity;
         if (selectedCategory) params.category = selectedCategory;
-        
+        if (selectedBrand) params.brand = selectedBrand;
+
         const response = await api.get('/drr-report/', { params });
         if (response.data.success && response.data.data) {
           // More memory efficient concatenation
@@ -1996,8 +1997,11 @@ function AppContent() {
       if (selectedDrrManufacturingCities && selectedDrrManufacturingCities.length > 0) params.manufacturing_city = selectedDrrManufacturingCities.join(',');
       if (selectedDrrCategories && selectedDrrCategories.length > 0) params.category = selectedDrrCategories.join(',');
       if (selectedDrrSubCategories && selectedDrrSubCategories.length > 0) params.sub_category = selectedDrrSubCategories.join(',');
-      if (selectedDrrBrands && selectedDrrBrands.length > 0) params.brand = selectedDrrBrands.join(',');
-      
+      // Use selectedBrand from header (global brand selector)
+      if (selectedBrand) params.brand = selectedBrand;
+      // Also include local DRR brand filters if they exist
+      else if (selectedDrrBrands && selectedDrrBrands.length > 0) params.brand = selectedDrrBrands.join(',');
+
       const response = await api.get('/drr-report/', { params });
       if (response.data.success) {
         console.log('DRR API Response:', response.data);
