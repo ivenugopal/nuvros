@@ -116,60 +116,54 @@ const TrendAnalysis = ({
   };
 
   const renderToolbar = () => (
-    <div className="filters-toolbar">
-      <div className="filters-row">
-        <div className="date-input-group">
-          <label htmlFor="trend-start-date">Start Date:</label>
-          <input
-            id="trend-start-date"
-            type="date"
-            value={localFilters.startDate}
-            onChange={(e) => onField('startDate', e.target.value)}
-          />
-        </div>
-        <div className="date-input-group">
-          <label htmlFor="trend-end-date">End Date:</label>
-          <input
-            id="trend-end-date"
-            type="date"
-            max={new Date().toISOString().split('T')[0]}
-            value={localFilters.endDate}
-            onChange={(e) => onField('endDate', e.target.value)}
-          />
-        </div>
-        <label>
-          Platform
-          <SingleSelectDropdown
-            options={localOptions?.platforms || []}
-            value={localFilters.platform[0] || ''}
-            onChange={(val) => onField('platform', val ? [val] : [])}
-            triggerPlaceholder="Select platform..."
-          />
-        </label>
-        <label>
-          Metric 1 (Y-Axis 1)
-          <select
-            value={localFilters.metric1}
-            onChange={(e) => onField('metric1', e.target.value)}
-          >
-            {availableMetrics.map((metric) => (
-              <option key={metric.key} value={metric.key}>{metric.label}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Metric 2 (Y-Axis 2)
-          <select
-            value={localFilters.metric2}
-            onChange={(e) => onField('metric2', e.target.value)}
-          >
-            {availableMetrics.map((metric) => (
-              <option key={metric.key} value={metric.key}>{metric.label}</option>
-            ))}
-          </select>
-        </label>
-        <button onClick={onApply} className="refresh-btn">Apply</button>
+    <div className="date-filters">
+      <div className="date-input-group">
+        <label htmlFor="trend-start-date">Start Date:</label>
+        <input
+          id="trend-start-date"
+          type="date"
+          value={localFilters.startDate}
+          onChange={(e) => onField('startDate', e.target.value)}
+        />
       </div>
+      <div className="date-input-group">
+        <label htmlFor="trend-end-date">End Date:</label>
+        <input
+          id="trend-end-date"
+          type="date"
+          max={new Date().toISOString().split('T')[0]}
+          value={localFilters.endDate}
+          onChange={(e) => onField('endDate', e.target.value)}
+        />
+      </div>
+      <div className="date-input-group">
+        <label>Platform</label>
+        <SingleSelectDropdown
+          options={localOptions?.platforms || []}
+          value={localFilters.platform[0] || ''}
+          onChange={(val) => onField('platform', val ? [val] : [])}
+          placeholder="Select platform..."
+        />
+      </div>
+      <div className="date-input-group">
+        <label>Metric 1 (Y-Axis 1)</label>
+        <SingleSelectDropdown
+          options={availableMetrics.map(m => m.key)}
+          value={localFilters.metric1}
+          onChange={(val) => onField('metric1', val)}
+          placeholder="Select metric 1..."
+        />
+      </div>
+      <div className="date-input-group">
+        <label>Metric 2 (Y-Axis 2)</label>
+        <SingleSelectDropdown
+          options={availableMetrics.map(m => m.key)}
+          value={localFilters.metric2}
+          onChange={(val) => onField('metric2', val)}
+          placeholder="Select metric 2..."
+        />
+      </div>
+      <button onClick={onApply} className="refresh-btn">Apply</button>
     </div>
   );
 

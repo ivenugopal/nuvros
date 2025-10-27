@@ -174,39 +174,37 @@ const CorrelationMatrix = ({
   };
 
   const renderToolbar = () => (
-    <div className="filters-toolbar">
-      <div className="filters-row">
-        <div className="date-input-group">
-          <label htmlFor="correlation-start-date">Start Date:</label>
-          <input
-            id="correlation-start-date"
-            type="date"
-            value={localFilters.startDate}
-            onChange={(e) => onField('startDate', e.target.value)}
-          />
-        </div>
-        <div className="date-input-group">
-          <label htmlFor="correlation-end-date">End Date:</label>
-          <input
-            id="correlation-end-date"
-            type="date"
-            max={new Date().toISOString().split('T')[0]}
-            value={localFilters.endDate}
-            onChange={(e) => onField('endDate', e.target.value)}
-          />
-        </div>
-        <label>
-          Platform
-          <MultiSelectDropdown
-            options={localOptions?.platforms || []}
-            values={localFilters.platform || []}
-            onChange={(vals) => onField('platform', vals)}
-            triggerPlaceholder="Select platforms..."
-            selectAllLabel="All Platforms"
-          />
-        </label>
-        <button onClick={onApply} className="refresh-btn">Apply</button>
+    <div className="date-filters">
+      <div className="date-input-group">
+        <label htmlFor="correlation-start-date">Start Date:</label>
+        <input
+          id="correlation-start-date"
+          type="date"
+          value={localFilters.startDate}
+          onChange={(e) => onField('startDate', e.target.value)}
+        />
       </div>
+      <div className="date-input-group">
+        <label htmlFor="correlation-end-date">End Date:</label>
+        <input
+          id="correlation-end-date"
+          type="date"
+          max={new Date().toISOString().split('T')[0]}
+          value={localFilters.endDate}
+          onChange={(e) => onField('endDate', e.target.value)}
+        />
+      </div>
+      <div className="date-input-group">
+        <label>Platform</label>
+        <MultiSelectDropdown
+          options={localOptions?.platforms || []}
+          values={localFilters.platform || []}
+          onChange={(vals) => onField('platform', vals)}
+          triggerPlaceholder="Select platforms..."
+          selectAllLabel="All Platforms"
+        />
+      </div>
+      <button onClick={onApply} className="refresh-btn">Apply</button>
     </div>
   );
 

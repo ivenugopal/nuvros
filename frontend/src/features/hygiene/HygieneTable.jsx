@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { fetchHygieneTable } from "../../services/api";
 import MultiSelectDropdown from "../../components/common/MultiSelectDropdown";
+import SingleSelectDropdown from "../../components/common/SingleSelectDropdown";
 import Pagination from "../../components/common/Pagination";
 import * as XLSX from 'xlsx';
 
@@ -11,7 +12,6 @@ const HygieneTable = () => {
   const [appliedFilters, setAppliedFilters] = useState({
     startDate: "",
     endDate: "",
-    brand: "",
     platform: [],
     hygiene: "All",
     category: "",
@@ -20,14 +20,12 @@ const HygieneTable = () => {
   const [localFilters, setLocalFilters] = useState({
     startDate: "",
     endDate: "",
-    brand: "",
     platform: [],
     hygiene: "All",
     category: "",
     subcategory: "",
   });
   const [options, setOptions] = useState({
-    brands: [],
     platforms: [],
     categories: [],
     subcategories: [],
@@ -37,7 +35,6 @@ const HygieneTable = () => {
   const [pageSize, setPageSize] = useState(20);
   const [totalRecords, setTotalRecords] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [brandsLoaded, setBrandsLoaded] = useState(false);
 
   const hygieneOptions = [
     "All",
@@ -63,40 +60,6 @@ const HygieneTable = () => {
     "Sub-category",
   ];
 
-  // Load brands from localStorage on component mount
-  useEffect(() => {
-    try {
-      const userBrandsJson = localStorage.getItem('userBrands');
-      if (userBrandsJson) {
-        const userBrands = JSON.parse(userBrandsJson);
-        // Use Hygiene brands if available, otherwise fall back to Sales or ALL key
-        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || userBrands.ALL || [];
-        setOptions(prev => ({
-          ...prev,
-          brands: hygieneBrands
-        }));
-
-        // Set the first brand as default if brands are available
-        if (hygieneBrands && hygieneBrands.length > 0) {
-          const firstBrand = hygieneBrands[0];
-          setLocalFilters(prev => ({
-            ...prev,
-            brand: firstBrand
-          }));
-          setAppliedFilters(prev => ({
-            ...prev,
-            brand: firstBrand
-          }));
-        }
-      }
-      // Mark brands as loaded
-      setBrandsLoaded(true);
-    } catch (error) {
-      console.error('Error loading brands from localStorage:', error);
-      setBrandsLoaded(true); // Still mark as loaded even on error
-    }
-  }, []);
-
   const loadData = async () => {
     setLoading(true);
     setError(null); // Clear any previous errors
@@ -111,7 +74,7 @@ const HygieneTable = () => {
 
       if (response.success) {
         setTotalRecords(response.data.length);
-        // Only update platforms, categories, and subcategories from API response, keep brands from localStorage
+        // Update platforms, categories, and subcategories from API response
         setOptions(prev => ({
           ...prev,
           platforms: response.options.platforms || [],
@@ -140,11 +103,8 @@ const HygieneTable = () => {
   };
 
   useEffect(() => {
-    // Only load data after brands have been initialized
-    if (brandsLoaded) {
-      loadData();
-    }
-  }, [appliedFilters, currentPage, pageSize, brandsLoaded]);
+    loadData();
+  }, [appliedFilters, currentPage, pageSize]);
 
   const handleFilterChange = (key, value) => {
     setLocalFilters((prev) => ({
@@ -230,109 +190,71 @@ const HygieneTable = () => {
   };
 
   const renderFilters = () => (
-    <div className="filters-panel">
-      <div className="filters-row">
-        <div className="date-input-group">
-          <label htmlFor="hygiene-table-start-date">Start Date:</label>
-          <input
-            id="hygiene-table-start-date"
-            type="date"
-            value={localFilters.startDate}
-            onChange={(e) => handleFilterChange("startDate", e.target.value)}
-          />
-        </div>
-        <div className="date-input-group">
-          <label htmlFor="hygiene-table-end-date">End Date:</label>
-          <input
-            id="hygiene-table-end-date"
-            type="date"
-            value={localFilters.endDate}
-            max={new Date().toISOString().split('T')[0]}
-            onChange={(e) => handleFilterChange("endDate", e.target.value)}
-          />
-        </div>
-        <div className="filter-group">
-          <label>Brand</label>
-          <select
-            value={localFilters.brand}
-            onChange={(e) => handleFilterChange("brand", e.target.value)}
-          >
-            <option value="">All Brands</option>
-            {options.brands.map((brand) => (
-              <option key={brand} value={brand}>
-                {brand}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label>Platform</label>
-          <MultiSelectDropdown
-            options={options.platforms}
-            values={localFilters.platform}
-            onChange={(values) => handleFilterChange("platform", values)}
-            triggerPlaceholder="Select platforms..."
-            selectAllLabel="All Platforms"
-          />
-        </div>
-        <div className="filter-group">
-          <label>Hygiene Type</label>
-          <select
-            value={localFilters.hygiene}
-            onChange={(e) => handleFilterChange("hygiene", e.target.value)}
-          >
-            {hygieneOptions.map((hygiene) => (
-              <option key={hygiene} value={hygiene}>
-                {hygiene}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label>Category</label>
-          <select
-            value={localFilters.category}
-            onChange={(e) => handleFilterChange("category", e.target.value)}
-          >
-            <option value="">All Categories</option>
-            {options.categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <label>Sub-category</label>
-          <select
-            value={localFilters.subcategory}
-            onChange={(e) => handleFilterChange("subcategory", e.target.value)}
-          >
-            <option value="">All Sub-categories</option>
-            {options.subcategories.map((subcategory) => (
-              <option key={subcategory} value={subcategory}>
-                {subcategory}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="filter-group">
-          <button className="apply-filters-btn" onClick={handleApplyFilters}>
-            Apply
-          </button>
-        </div>
-        <div className="filter-group">
-          <button
-            onClick={onDownload}
-            className="btn-ghost"
-            disabled={isDownloading}
-          >
-            {isDownloading ? "Downloading..." : "Download XLSX"}
-          </button>
-        </div>
+    <div className="date-filters">
+      <div className="date-input-group">
+        <label htmlFor="hygiene-table-start-date">Start Date:</label>
+        <input
+          id="hygiene-table-start-date"
+          type="date"
+          value={localFilters.startDate}
+          onChange={(e) => handleFilterChange("startDate", e.target.value)}
+        />
       </div>
+      <div className="date-input-group">
+        <label htmlFor="hygiene-table-end-date">End Date:</label>
+        <input
+          id="hygiene-table-end-date"
+          type="date"
+          value={localFilters.endDate}
+          max={new Date().toISOString().split('T')[0]}
+          onChange={(e) => handleFilterChange("endDate", e.target.value)}
+        />
+      </div>
+      <div className="date-input-group">
+        <label>Platform</label>
+        <MultiSelectDropdown
+          options={options.platforms}
+          values={localFilters.platform}
+          onChange={(values) => handleFilterChange("platform", values)}
+          triggerPlaceholder="Select platforms..."
+          selectAllLabel="All Platforms"
+        />
+      </div>
+      <div className="date-input-group">
+        <label>Hygiene Type</label>
+        <SingleSelectDropdown
+          options={hygieneOptions}
+          value={localFilters.hygiene}
+          onChange={(value) => handleFilterChange("hygiene", value)}
+          triggerPlaceholder="Select hygiene type..."
+        />
+      </div>
+      <div className="date-input-group">
+        <label>Category</label>
+        <SingleSelectDropdown
+          options={options.categories}
+          value={localFilters.category}
+          onChange={(value) => handleFilterChange("category", value)}
+          triggerPlaceholder="Select category..."
+          selectAllLabel="All Categories"
+        />
+      </div>
+      <div className="date-input-group">
+        <label>Sub-category</label>
+        <SingleSelectDropdown
+          options={options.subcategories}
+          value={localFilters.subcategory}
+          onChange={(value) => handleFilterChange("subcategory", value)}
+          triggerPlaceholder="Select sub-category..."
+          selectAllLabel="All Sub-categories"
+        />
+      </div>
+      <button className="refresh-btn" onClick={handleApplyFilters}>
+        Apply
+      </button>
     </div>
   );
+
 
   const renderTable = () => {
     const columns = getColumns();
