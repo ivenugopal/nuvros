@@ -13,6 +13,7 @@ import Sidebar from './components/layout/Sidebar';
 import AuthCard from './components/auth/AuthCard';
 import ThemeToggle from './components/common/ThemeToggle';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { UserBrandsProvider, useUserBrands } from './contexts/UserBrandsContext';
 import OverallSummary from './features/sales/OverallSummary';
 import DRRReport from './features/sales/DRRReport';
 import PlatformSummary from './features/sales/PlatformSummary';
@@ -136,14 +137,14 @@ function App() {
   const [expandedModules, setExpandedModules] = useState({ sales: true }); // Track which modules are expanded
   const { start: defaultMonthStart, end: defaultMonthEnd } = getCurrentMonthStartEnd();
   const [startDate, setStartDate] = useState(defaultMonthStart);
-  const [endDate, setEndDate] = useState(defaultMonthEnd);
-  
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]); // Use current date instead of month end
+
   // DRR Report state
   const [drrData, setDrrData] = useState([]);
   const [drrLoading, setDrrLoading] = useState(false);
   const [drrError, setDrrError] = useState(null);
   const [drrStartDate, setDrrStartDate] = useState(defaultMonthStart);
-  const [drrEndDate, setDrrEndDate] = useState(defaultMonthEnd);
+  const [drrEndDate, setDrrEndDate] = useState(new Date().toISOString().split('T')[0]); // Use current date instead of month end
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [availablePlatforms, setAvailablePlatforms] = useState([]);
   const [selectedCity, setSelectedCity] = useState('');
@@ -164,14 +165,14 @@ function App() {
   const [selectedDrrManufacturingCities, setSelectedDrrManufacturingCities] = useState([]);
   const [selectedDrrCategories, setSelectedDrrCategories] = useState([]);
   const [selectedDrrSubCategories, setSelectedDrrSubCategories] = useState([]);
-  const [selectedDrrBrands, setSelectedDrrBrands] = useState(['Clear']);
-  
+  const [selectedDrrBrands, setSelectedDrrBrands] = useState([]);
+
   // Platform Sales Summary state
   const [platformSummaryData, setPlatformSummaryData] = useState([]);
   const [platformSummaryLoading, setPlatformSummaryLoading] = useState(false);
   const [platformSummaryError, setPlatformSummaryError] = useState(null);
   const [platformSummaryStartDate, setPlatformSummaryStartDate] = useState(defaultMonthStart);
-  const [platformSummaryEndDate, setPlatformSummaryEndDate] = useState(defaultMonthEnd);
+  const [platformSummaryEndDate, setPlatformSummaryEndDate] = useState(new Date().toISOString().split('T')[0]); // Use current date instead of month end
   const [selectedPlatformSummary, setSelectedPlatformSummary] = useState('');
   const [selectedPlatformSummaryCity, setSelectedPlatformSummaryCity] = useState('');
   const [selectedPlatformSummarySupplySource, setSelectedPlatformSummarySupplySource] = useState('');
@@ -181,7 +182,7 @@ function App() {
   const [availablePlatformSummaryCategories, setAvailablePlatformSummaryCategories] = useState([]);
   const [selectedPlatformSummaryCategory, setSelectedPlatformSummaryCategory] = useState('');
   // Platform Summary additional: brand (local multi) and manufacturing city
-  const [selectedPlatformSummaryBrands, setSelectedPlatformSummaryBrands] = useState(['Clear']);
+  const [selectedPlatformSummaryBrands, setSelectedPlatformSummaryBrands] = useState([]);
   const [selectedPlatformSummaryManufacturingCity, setSelectedPlatformSummaryManufacturingCity] = useState([]);
   const [availablePlatformSummaryManufacturingCities, setAvailablePlatformSummaryManufacturingCities] = useState([]);
   
@@ -210,7 +211,7 @@ function App() {
   const [availablePlatformReportManufacturingCities, setAvailablePlatformReportManufacturingCities] = useState([]);
   const [selectedMetricReport, setSelectedMetricReport] = useState('gmv');
   // Sales Performance specific: multi-brand selection
-  const [selectedPlatformReportBrands, setSelectedPlatformReportBrands] = useState(['Clear']);
+  const [selectedPlatformReportBrands, setSelectedPlatformReportBrands] = useState([]);
   const [salesPerfView, setSalesPerfView] = useState('target'); // 'target' | 'weekly' | 'monthly'
   const [weeklyData, setWeeklyData] = useState([]);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
@@ -224,14 +225,14 @@ function App() {
   const [contribLoading, setContribLoading] = useState(false);
   const [contribError, setContribError] = useState(null);
   const [contribStartDate, setContribStartDate] = useState(defaultMonthStart);
-  const [contribEndDate, setContribEndDate] = useState(defaultMonthEnd);
+  const [contribEndDate, setContribEndDate] = useState(new Date().toISOString().split('T')[0]); // Use current date instead of month end
   const [selectedContribPlatforms, setSelectedContribPlatforms] = useState([]); // multi-select
   const [selectedContribCity, setSelectedContribCity] = useState([]); // multi-select
   const [selectedContribSupplySource, setSelectedContribSupplySource] = useState([]); // multi-select
   const [selectedContribCategory, setSelectedContribCategory] = useState([]); // multi-select
   const [selectedContribSubCategory, setSelectedContribSubCategory] = useState([]); // multi-select
   // Sales Contribution specific: multi-brand selection
-  const [selectedContribBrands, setSelectedContribBrands] = useState(['Clear']);
+  const [selectedContribBrands, setSelectedContribBrands] = useState([]);
   const [selectedContribManufacturingCities, setSelectedContribManufacturingCities] = useState([]);
   
   // Sales Contribution pagination state
@@ -259,7 +260,7 @@ function App() {
   const [dailyReportLoading, setDailyReportLoading] = useState(false);
   const [dailyReportError, setDailyReportError] = useState(null);
   const [dailyReportStartDate, setDailyReportStartDate] = useState(defaultMonthStart);
-  const [dailyReportEndDate, setDailyReportEndDate] = useState(defaultMonthEnd);
+  const [dailyReportEndDate, setDailyReportEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedDailyReportPlatform, setSelectedDailyReportPlatform] = useState('');
   const [selectedDailyReportBrands, setSelectedDailyReportBrands] = useState([]);
   const [selectedDailyReportCities, setSelectedDailyReportCities] = useState([]);
@@ -368,8 +369,9 @@ function App() {
   });
 
   // Add brand filter state
-  const [selectedBrand, setSelectedBrand] = useState('Clear');
+  const [selectedBrand, setSelectedBrand] = useState('');
   const [availableBrands, setAvailableBrands] = useState([]);
+  const [brandsInitialized, setBrandsInitialized] = useState(false);
   const [availableOverallPlatforms, setAvailableOverallPlatforms] = useState([]);
 
   // Ads Overview state
@@ -398,7 +400,7 @@ function App() {
   const [hygieneLoading, setHygieneLoading] = useState(false);
   const [hygieneError, setHygieneError] = useState(null);
   const [hygieneStartDate, setHygieneStartDate] = useState(defaultMonthStart);
-  const [hygieneEndDate, setHygieneEndDate] = useState(defaultMonthEnd);
+  const [hygieneEndDate, setHygieneEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [hygieneBrand, setHygieneBrand] = useState('');
   const [hygienePlatform, setHygienePlatform] = useState([]);
   const [hygieneOptions, setHygieneOptions] = useState({ brands: [], platforms: [] });
@@ -408,7 +410,7 @@ function App() {
   const [trendLoading, setTrendLoading] = useState(false);
   const [trendError, setTrendError] = useState(null);
   const [trendStartDate, setTrendStartDate] = useState(defaultMonthStart);
-  const [trendEndDate, setTrendEndDate] = useState(defaultMonthEnd);
+  const [trendEndDate, setTrendEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [trendBrand, setTrendBrand] = useState('');
   const [trendPlatform, setTrendPlatform] = useState([]);
   const [trendMetric1, setTrendMetric1] = useState('Live Price');
@@ -420,7 +422,7 @@ function App() {
   const [correlationLoading, setCorrelationLoading] = useState(false);
   const [correlationError, setCorrelationError] = useState(null);
   const [correlationStartDate, setCorrelationStartDate] = useState(defaultMonthStart);
-  const [correlationEndDate, setCorrelationEndDate] = useState(defaultMonthEnd);
+  const [correlationEndDate, setCorrelationEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [correlationBrand, setCorrelationBrand] = useState('');
   const [correlationPlatform, setCorrelationPlatform] = useState([]);
   const [correlationOptions, setCorrelationOptions] = useState({ brands: [], platforms: [] });
@@ -546,33 +548,76 @@ function App() {
   // Modules and helpers moved to constants
   
   const toggleModuleExpansion = (moduleKey) => {
-    setExpandedModules(prev => ({
-      ...prev,
-      [moduleKey]: !prev[moduleKey]
-    }));
+    setExpandedModules(prev => {
+      const newExpandedState = !prev[moduleKey];
+
+      // If expanding a module, fetch its specific brands
+      if (newExpandedState && authToken) {
+        console.log(`Module "${moduleKey}" expanded - fetching brands for this module`);
+        fetchUserBrands(moduleKey);
+      }
+
+      return {
+        ...prev,
+        [moduleKey]: newExpandedState
+      };
+    });
   };
 
+  // Fetch user brands only once when authToken is available
   useEffect(() => {
     if (authToken) {
       fetchUserBrands();
+    }
+  }, [authToken]);
+
+  // Fetch data only once on load when authToken is available and brands are initialized
+  // Filter changes will NOT trigger API calls - user must click APPLY button
+  useEffect(() => {
+    if (authToken && brandsInitialized) {
+      console.log('🔥 API TRIGGER - Initial load only:', {
+        trigger: 'OverallSummary useEffect (load only)',
+        startDate,
+        endDate,
+        selectedBrand,
+        timestamp: new Date().toISOString()
+      });
       fetchData();
       fetchTargetData();
     }
-  }, [startDate, endDate, authToken, selectedBrand]);
+  }, [authToken, brandsInitialized]); // Only authToken and brandsInitialized dependencies - API called once on load
 
+  // Fetch DRR data only when tab changes or pagination changes, and after brands are initialized
+  // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'drr') {
+      console.log('🔥 API TRIGGER - DRR tab loaded or pagination changed:', {
+        trigger: 'DRRReport useEffect',
+        activeTab,
+        currentPage,
+        pageSize,
+        selectedDrrBrands,
+        timestamp: new Date().toISOString()
+      });
       fetchDrrData();
     }
-  }, [activeTab, drrStartDate, drrEndDate, selectedDrrPlatforms, selectedDrrCities, selectedDrrSupplySources, selectedDrrManufacturingCities, selectedDrrCategories, selectedDrrSubCategories, selectedDrrBrands, currentPage, pageSize, authToken]);
+  }, [activeTab, currentPage, pageSize, authToken, brandsInitialized]); // Removed filter dependencies - only tab switch and pagination trigger API
 
+  // Fetch PlatformSummary data only when tab changes and after brands are initialized
+  // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'platformSummary') {
+      console.log('🔥 API TRIGGER - PlatformSummary tab loaded:', {
+        trigger: 'PlatformSummary useEffect',
+        activeTab,
+        selectedPlatformSummaryBrands,
+        timestamp: new Date().toISOString()
+      });
       fetchPlatformSummaryData();
     }
-  }, [activeTab, platformSummaryStartDate, platformSummaryEndDate, selectedPlatformSummary, selectedPlatformSummaryCity, selectedPlatformSummarySupplySource, selectedPlatformSummaryCategory, selectedPlatformSummaryManufacturingCity, authToken, selectedPlatformSummaryBrands]);
+  }, [activeTab, authToken, brandsInitialized]); // Removed filter dependencies - only tab switch triggers API
 
   useEffect(() => {
     if (!authToken) return;
@@ -604,19 +649,28 @@ function App() {
     }
   }, [activeTab, correlationStartDate, correlationEndDate, correlationBrand, correlationPlatform, authToken]);
 
+  // Fetch SalesPerformance data only when tab or view changes and after brands are initialized
+  // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'salesContribution') {
       fetchSalesContribution();
     }
     if (activeTab === 'platformReport') {
-        if (salesPerfView === 'target') {
-          fetchPlatformReportData();
-        } else if (salesPerfView === 'weekly') {
-          fetchWeeklyData();
-        } else if (salesPerfView === 'monthly') {
-          fetchMonthlyData();
-        }
+      console.log('🔥 API TRIGGER - SalesPerformance tab/view changed:', {
+        trigger: 'SalesPerformance useEffect',
+        activeTab,
+        salesPerfView,
+        selectedPlatformReportBrands,
+        timestamp: new Date().toISOString()
+      });
+      if (salesPerfView === 'target') {
+        fetchPlatformReportData();
+      } else if (salesPerfView === 'weekly') {
+        fetchWeeklyData();
+      } else if (salesPerfView === 'monthly') {
+        fetchMonthlyData();
+      }
       if (availablePlatformsReport.length === 0) {
         fetchPlatformsForReport();
       }
@@ -625,21 +679,31 @@ function App() {
         fetchFilterOptionsForReport();
       }
     }
-  }, [activeTab, platformReportMonthStart, platformReportMonthEnd, selectedPlatformReport, selectedPlatformReportCity, selectedPlatformReportSupplySource, selectedPlatformReportCategory, selectedMetricReport, selectedPlatformReportManufacturingCity, salesPerfView, authToken, selectedPlatformReportBrands]);
+  }, [activeTab, salesPerfView, authToken, brandsInitialized]); // Removed filter dependencies - only tab and view switch trigger API
 
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'salesContribution') {
+      console.log('🔥 API TRIGGER - SalesContribution:', {
+        trigger: 'SalesContribution useEffect',
+        selectedContribBrands,
+        timestamp: new Date().toISOString()
+      });
       fetchSalesContribution();
     }
-  }, [activeTab, contribStartDate, contribEndDate, selectedContribPlatforms, selectedContribCity, selectedContribSupplySource, selectedContribCategory, selectedContribSubCategory, contribCurrentPage, contribPageSize, authToken, selectedContribBrands]);
+  }, [activeTab, contribStartDate, contribEndDate, selectedContribPlatforms, selectedContribCity, selectedContribSupplySource, selectedContribCategory, selectedContribSubCategory, contribCurrentPage, contribPageSize, authToken, brandsInitialized, selectedContribBrands]);
 
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'dailyReport') {
+      console.log('🔥 API TRIGGER - DailyReport:', {
+        trigger: 'DailyReport useEffect',
+        selectedDailyReportBrands,
+        timestamp: new Date().toISOString()
+      });
       fetchDailyReport();
     }
-  }, [activeTab, dailyReportStartDate, dailyReportEndDate, selectedDailyReportPlatform, selectedDailyReportMetric, dailyReportView, authToken, selectedDailyReportBrands, selectedDailyReportCities, selectedDailyReportSupplySources, selectedDailyReportManufacturingCities, selectedDailyReportCategories, selectedDailyReportSubCategories]);
+  }, [activeTab, dailyReportStartDate, dailyReportEndDate, selectedDailyReportPlatform, selectedDailyReportMetric, dailyReportView, authToken, brandsInitialized, selectedDailyReportBrands, selectedDailyReportCities, selectedDailyReportSupplySources, selectedDailyReportManufacturingCities, selectedDailyReportCategories, selectedDailyReportSubCategories]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -1204,8 +1268,7 @@ function App() {
         setAvailableContribCategories(response.data.categories || []);
         setAvailableContribSubCategories(response.data.sub_categories || []);
         console.log("Current available brands:", availableBrands);
-        setAvailableBrands(response.data.brands || []);
-//        setAvailableBrands(availableBrands || []);
+//        setAvailableBrands(response.data.brands || []);
         setContribPagination(response.data.pagination || {});
       } else {
         setContribError(response.data.error || 'Failed to fetch');
@@ -1270,7 +1333,8 @@ function App() {
         const tableData = response.data.data || [];
         setDailyReportData(tableData);
         setAvailableDailyReportPlatforms(response.data.platforms || []);
-        const nextBrands = response.data.brands || [];
+//        const nextBrands = response.data.brands || [];
+        const nextBrands = JSON.parse(localStorage.userBrands).Sales || []; // Preserve existing brands
         const nextCities = response.data.cities || [];
         const nextSupply = response.data.supply_sources || [];
         const nextManu = response.data.manufacturing_cities || [];
@@ -1434,12 +1498,83 @@ function App() {
   const isAllPlatformsSelected = selectedContribPlatforms.length === 0 || selectedContribPlatforms.length === availableContribPlatforms.length;
   const filteredContribPlatforms = (availableContribPlatforms || []).filter(p => p && p.toLowerCase().includes(contribSearch.toLowerCase()));
 
-  const fetchUserBrands = async () => {
+  const fetchUserBrands = async (moduleKey = null) => {
     try {
       const response = await api.get('/user-brands/');
       if (response.data.success) {
-        console.log('Consolidated data:', response.data.data);
-        setAvailableBrands(response.data.brands || []);
+        const brands = response.data.brands;
+        console.log('User brands fetched for module:', moduleKey || activeModule, brands);
+
+        // Store in localStorage for global access
+        localStorage.setItem('userBrands', JSON.stringify(brands));
+
+        // Determine which module to update brands for
+        const targetModule = moduleKey || activeModule;
+
+        // Update brands based on the active/expanded module
+        switch(targetModule) {
+          case 'sales':
+            // Update all sales-related brand dropdowns
+            const salesBrands = brands.Sales || brands.ALL || [];
+            console.log('🔍 Sales brands array:', salesBrands);
+            console.log('🔍 First brand (salesBrands[0]):', salesBrands[0]);
+            console.log('🔍 Current selectedBrand before setting:', selectedBrand);
+            setAvailableBrands(salesBrands);
+            // Always set first brand from the sorted array
+            if (salesBrands.length > 0) {
+              console.log('✅ Setting selectedBrand to:', salesBrands[0]);
+              setSelectedBrand(salesBrands[0]);
+              // Set first brand for all sales module filters
+              setSelectedDrrBrands([salesBrands[0]]);
+              setSelectedPlatformSummaryBrands([salesBrands[0]]);
+              setSelectedPlatformReportBrands([salesBrands[0]]);
+              setSelectedContribBrands([salesBrands[0]]);
+              setSelectedDailyReportBrands([salesBrands[0]]);
+            }
+            setBrandsInitialized(true);
+            break;
+
+          case 'hygiene':
+            // Update all hygiene-related brand dropdowns
+            setHygieneOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
+            setTrendOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
+            setCorrelationOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
+            break;
+
+          case 'ads':
+            // Update ads brands
+            setCatSpendOptions(prev => ({ ...prev, brands: brands.Ads || brands.Sales || [] }));
+            break;
+
+          case 'inventory':
+            // Update inventory brands when that module is implemented
+            // setInventoryOptions(prev => ({ ...prev, brands: brands.Inventory || brands.Sales || [] }));
+            break;
+
+          default:
+            // Default to sales brands for all modules
+            const defaultBrands = brands.Sales || brands.ALL || [];
+            console.log('🔍 Default brands array:', defaultBrands);
+            console.log('🔍 First brand (defaultBrands[0]):', defaultBrands[0]);
+            console.log('🔍 Current selectedBrand before setting:', selectedBrand);
+            setAvailableBrands(defaultBrands);
+            // Always set first brand from the sorted array
+            if (defaultBrands.length > 0) {
+              console.log('✅ Setting selectedBrand to:', defaultBrands[0]);
+              setSelectedBrand(defaultBrands[0]);
+              // Set first brand for all sales module filters
+              setSelectedDrrBrands([defaultBrands[0]]);
+              setSelectedPlatformSummaryBrands([defaultBrands[0]]);
+              setSelectedPlatformReportBrands([defaultBrands[0]]);
+              setSelectedContribBrands([defaultBrands[0]]);
+              setSelectedDailyReportBrands([defaultBrands[0]]);
+            }
+            setBrandsInitialized(true);
+            setHygieneOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));
+            setTrendOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));
+            setCorrelationOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));
+            setCatSpendOptions(prev => ({ ...prev, brands: brands.Ads || brands.Sales || brands.ALL || [] }));
+        }
       } else {
         console.error('Failed to fetch user brands:', response.data.error);
       }
@@ -1451,6 +1586,15 @@ function App() {
 
   const fetchData = async () => {
     try {
+      console.log('🌐 API CALL - fetchData() called', {
+        endpoint: '/consolidated-data/',
+        params: {
+          start_date: startDate,
+          end_date: endDate,
+          brand: selectedBrand
+        },
+        timestamp: new Date().toISOString()
+      });
       setLoading(true);
       setError(null); // Clear any previous errors
       const params = {};
@@ -1487,6 +1631,15 @@ function App() {
 
   const fetchTargetData = async () => {
     try {
+      console.log('🌐 API CALL - fetchTargetData() called', {
+        endpoint: '/sales-target-data/',
+        params: {
+          start_date: startDate,
+          end_date: endDate,
+          brand: selectedBrand
+        },
+        timestamp: new Date().toISOString()
+      });
       setTargetLoading(true);
       setTargetError(null); // Clear any previous errors
       const params = {};
@@ -1517,6 +1670,22 @@ function App() {
 
   const fetchWeeklyData = async () => {
     try {
+      console.log('🌐 API CALL - fetchWeeklyData() called', {
+        endpoint: '/platform-sales-subcategory-drilldown/',
+        view: 'Weekly',
+        params: {
+          month_start: platformReportMonthStart,
+          month_end: platformReportMonthEnd,
+          platform: selectedPlatformReport,
+          city: selectedPlatformReportCity,
+          supply_source: selectedPlatformReportSupplySource,
+          category: selectedPlatformReportCategory,
+          metric: selectedMetricReport,
+          manufacturing_city: selectedPlatformReportManufacturingCity,
+          brand: selectedPlatformReportBrands
+        },
+        timestamp: new Date().toISOString()
+      });
       setWeeklyLoading(true);
       setWeeklyError(null);
       
@@ -1609,6 +1778,22 @@ function App() {
 
   const fetchMonthlyData = async () => {
     try {
+      console.log('🌐 API CALL - fetchMonthlyData() called', {
+        endpoint: '/platform-sales-subcategory-drilldown/',
+        view: 'Monthly',
+        params: {
+          month_start: platformReportMonthStart,
+          month_end: platformReportMonthEnd,
+          platform: selectedPlatformReport,
+          city: selectedPlatformReportCity,
+          supply_source: selectedPlatformReportSupplySource,
+          category: selectedPlatformReportCategory,
+          metric: selectedMetricReport,
+          manufacturing_city: selectedPlatformReportManufacturingCity,
+          brand: selectedPlatformReportBrands
+        },
+        timestamp: new Date().toISOString()
+      });
       setMonthlyLoading(true);
       setMonthlyError(null);
       
@@ -1864,7 +2049,7 @@ function App() {
         setAvailableManufacturingCities(response.data.manufacturing_cities || []);
         setAvailableCategories(response.data.categories || []);
         setAvailableSubCategories(response.data.sub_categories || []);
-        setAvailableBrands(response.data.brands || []);
+//        setAvailableBrands(response.data.brands || []);
         setPagination(response.data.pagination || {});
       } else {
         setDrrError(response.data.error);
@@ -1880,6 +2065,20 @@ function App() {
 
   const fetchPlatformSummaryData = async () => {
     try {
+      console.log('🌐 API CALL - fetchPlatformSummaryData() called', {
+        endpoint: '/platform-sales-summary/',
+        params: {
+          start_date: platformSummaryStartDate,
+          end_date: platformSummaryEndDate,
+          platform: selectedPlatformSummary,
+          city: selectedPlatformSummaryCity,
+          supply_source: selectedPlatformSummarySupplySource,
+          category: selectedPlatformSummaryCategory,
+          manufacturing_city: selectedPlatformSummaryManufacturingCity,
+          brand: selectedPlatformSummaryBrands
+        },
+        timestamp: new Date().toISOString()
+      });
       setPlatformSummaryLoading(true);
       setPlatformSummaryError(null);
       const params = {};
@@ -1899,7 +2098,7 @@ function App() {
         setAvailablePlatformSummaryCities(response.data.cities || []);
         setAvailablePlatformSummarySupplySources(response.data.supply_sources || []);
         setAvailablePlatformSummaryCategories(response.data.categories || []);
-        setAvailableBrands(response.data.brands || []);
+//        setAvailableBrands(response.data.brands || []);
         setAvailablePlatformSummaryManufacturingCities(response.data.manufacturing_cities || []);
       } else {
         setPlatformSummaryError(response.data.error);
@@ -2038,6 +2237,22 @@ function App() {
 
   const fetchPlatformReportData = async () => {
     try {
+      console.log('🌐 API CALL - fetchPlatformReportData() called', {
+        endpoint: '/platform-sales-subcategory-drilldown/',
+        view: 'Target',
+        params: {
+          month_start: platformReportMonthStart,
+          month_end: platformReportMonthEnd,
+          platform: selectedPlatformReport,
+          city: selectedPlatformReportCity,
+          supply_source: selectedPlatformReportSupplySource,
+          category: selectedPlatformReportCategory,
+          metric: selectedMetricReport,
+          manufacturing_city: selectedPlatformReportManufacturingCity,
+          brand: selectedPlatformReportBrands
+        },
+        timestamp: new Date().toISOString()
+      });
       setPlatformReportLoading(true);
       setPlatformReportError(null);
       const params = {};
@@ -2071,7 +2286,7 @@ function App() {
           setAvailablePlatformReportCategories(response.data.categories);
         }
         if (Array.isArray(response.data.brands)) {
-          setAvailableBrands(response.data.brands);
+//          setAvailableBrands(response.data.brands);
         }
       } else {
         setPlatformReportError(response.data.error || 'Failed to fetch');
@@ -2426,6 +2641,7 @@ function App() {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('userBrands');
     setAuthToken('');
   };
 
@@ -2741,12 +2957,11 @@ function App() {
                     const changed = JSON.stringify(newBrands) !== JSON.stringify(selectedPlatformReportBrands || []);
                     setSelectedPlatformReportBrands(newBrands);
                     if (changed) {
-                      setSelectedPlatformReport('');
                       setSelectedPlatformReportCity('');
                       setSelectedPlatformReportSupplySource('');
                       setSelectedPlatformReportManufacturingCity('');
                       setSelectedPlatformReportCategory('');
-                      // Fetch new filter options based on selected brands
+                      // Fetch new filter options based on selected brands (for Category dropdown)
                       fetchFilterOptionsForReport({ brand: newBrands.join(',') });
                     }
                   }
@@ -2760,7 +2975,7 @@ function App() {
                       setSelectedPlatformReportManufacturingCity('');
                       setSelectedPlatformReportCategory('');
                       // Fetch new filter options based on selected platform and brands
-                      const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
+                      const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
                         ? { brand: selectedPlatformReportBrands.join(',') } : {};
                       fetchFilterOptionsForReport({ platform: next.platform, ...brandFilter });
                     }
@@ -2785,7 +3000,6 @@ function App() {
                   if (Object.prototype.hasOwnProperty.call(next, 'supply_source')) {
                     setSelectedPlatformReportSupplySource(next.supply_source);
                     // When supply source changes, clear dependent filters and fetch new options
-                    setSelectedPlatformReportCity('');
                     setSelectedPlatformReportCategory('');
                     // Fetch new filter options based on selected supply source, platform and brands
                     const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
@@ -2801,16 +3015,16 @@ function App() {
                     setSelectedPlatformReportManufacturingCity(next.manufacturing_city);
                     // Manufacturing city affects category options
                     setSelectedPlatformReportCategory('');
-                    // Fetch new category options based on manufacturing city
-                    const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
-                      ? { brand: selectedPlatformReportBrands.join(',') } : {};
-                    fetchFilterOptionsForReport({
-                      platform: selectedPlatformReport,
-                      city: selectedPlatformReportCity,
-                      supply_source: selectedPlatformReportSupplySource,
-                      manufacturing_city: next.manufacturing_city,
-                      ...brandFilter
-                    });
+                    // DISABLED: Don't fetch filter options on manufacturing city change - user must click APPLY
+                    // const brandFilter = Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+                    //   ? { brand: selectedPlatformReportBrands.join(',') } : {};
+                    // fetchFilterOptionsForReport({
+                    //   platform: selectedPlatformReport,
+                    //   city: selectedPlatformReportCity,
+                    //   supply_source: selectedPlatformReportSupplySource,
+                    //   manufacturing_city: next.manufacturing_city,
+                    //   ...brandFilter
+                    // });
                   }
                   
                   if (Object.prototype.hasOwnProperty.call(next, 'category')) {

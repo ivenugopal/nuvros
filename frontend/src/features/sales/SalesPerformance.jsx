@@ -344,11 +344,37 @@ const SalesPerformance = ({
         <div className="date-filters">
           <div className="date-input-group">
             <label htmlFor="platform-report-month-start">Month Start:</label>
-            <input id="platform-report-month-start" type="month" value={filters.month_start} onChange={(e) => onChangeFilters({ month_start: e.target.value })} />
+            <input
+              id="platform-report-month-start"
+              type="month"
+              value={filters.month_start}
+              onChange={(e) => {
+                console.log('📅 USER ACTION: Month Start changed', {
+                  component: 'SalesPerformance',
+                  oldValue: filters.month_start,
+                  newValue: e.target.value,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ month_start: e.target.value });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-report-month-end">Month End:</label>
-            <input id="platform-report-month-end" type="month" value={filters.month_end} onChange={(e) => onChangeFilters({ month_end: e.target.value })} />
+            <input
+              id="platform-report-month-end"
+              type="month"
+              value={filters.month_end}
+              onChange={(e) => {
+                console.log('📅 USER ACTION: Month End changed', {
+                  component: 'SalesPerformance',
+                  oldValue: filters.month_end,
+                  newValue: e.target.value,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ month_end: e.target.value });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-report-platform">Platform:</label>
@@ -356,7 +382,15 @@ const SalesPerformance = ({
               id="platform-report-platform"
               options={options.platforms || []}
               values={filters.platform || []}
-              onChange={(vals) => onChangeFilters({ platform: vals })}
+              onChange={(vals) => {
+                console.log('🏢 USER ACTION: Platform changed', {
+                  component: 'SalesPerformance',
+                  oldValue: filters.platform,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ platform: vals });
+              }}
               triggerPlaceholder="All Platforms"
             />
           </div>
@@ -366,7 +400,15 @@ const SalesPerformance = ({
               id="performance-city-filter"
               options={options.cities || []}
               values={filters.city || []}
-              onChange={(vals) => onChangeFilters({ city: vals })}
+              onChange={(vals) => {
+                console.log('🏙️ USER ACTION: City changed', {
+                  component: 'SalesPerformance',
+                  oldValue: filters.city,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ city: vals });
+              }}
               triggerPlaceholder="All Cities"
             />
           </div>
@@ -376,7 +418,15 @@ const SalesPerformance = ({
               id="performance-supply-filter"
               options={options.supply_sources || []}
               values={filters.supply_source || []}
-              onChange={(vals) => onChangeFilters({ supply_source: vals })}
+              onChange={(vals) => {
+                console.log('📦 USER ACTION: Supply Source changed', {
+                  component: 'SalesPerformance',
+                  oldValue: filters.supply_source,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ supply_source: vals });
+              }}
               triggerPlaceholder="All PO/FC-DC"
             />
           </div>
@@ -386,8 +436,51 @@ const SalesPerformance = ({
               id="performance-manufacture-filter"
               options={options.manufacturing_cities || []}
               values={filters.manufacturing_city || []}
-              onChange={(vals) => onChangeFilters({ manufacturing_city: vals })}
+              onChange={(vals) => {
+                console.log('🏭 USER ACTION: Manufacturing City changed', {
+                  component: 'SalesPerformance',
+                  oldValue: filters.manufacturing_city,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ manufacturing_city: vals });
+              }}
               triggerPlaceholder="All Manufacture Sources"
+            />
+          </div>
+          <div className="date-input-group">
+            <label htmlFor="performance-brand-filter">Brand:</label>
+            <MultiSelectDropdown
+              id="performance-brand-filter"
+              options={options.brands || []}
+              values={filters.brand || []}
+              onChange={(vals) => {
+                console.log('🏷️ USER ACTION: Brand changed', {
+                  component: 'SalesPerformance',
+                  oldValue: filters.brand,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ brand: vals });
+              }}
+            />
+          </div>
+          <div className="date-input-group">
+            <label htmlFor="performance-category-filter">Category:</label>
+            <MultiSelectDropdown
+              id="performance-category-filter"
+              options={options.categories || []}
+              values={filters.category || []}
+              onChange={(vals) => {
+                console.log('📂 USER ACTION: Category changed', {
+                  component: 'SalesPerformance',
+                  oldValue: filters.category,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ category: vals });
+              }}
+              triggerPlaceholder="All Categories"
             />
           </div>
           <div className="date-input-group">
@@ -396,22 +489,16 @@ const SalesPerformance = ({
               id="platform-report-metric"
               options={[ 'gmv', 'units', 'asp' ]}
               value={filters.metric || 'gmv'}
-              onChange={(val) => onChangeFilters({ metric: val })}
+              onChange={(val) => {
+                console.log('📊 USER ACTION: Metric changed', {
+                  component: 'SalesPerformance',
+                  oldValue: filters.metric,
+                  newValue: val,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ metric: val });
+              }}
               placeholder="Metric"
-            />
-          </div>
-          <div className="date-input-group">
-            <label htmlFor="performance-brand-filter">Brand:</label>
-            <MultiSelectDropdown id="performance-brand-filter" options={options.brands || []} values={filters.brand || []} onChange={(vals) => onChangeFilters({ brand: vals })} />
-          </div>
-          <div className="date-input-group">
-            <label htmlFor="performance-category-filter">Category:</label>
-            <MultiSelectDropdown
-              id="performance-category-filter"
-              options={options.categories || []}
-              values={filters.category || []}
-              onChange={(vals) => onChangeFilters({ category: vals })}
-              triggerPlaceholder="All Categories"
             />
           </div>
           <div className="date-input-group">
@@ -429,7 +516,36 @@ const SalesPerformance = ({
               <button className={`toggle-btn ${displayMode === 'graph' ? 'active' : ''}`} onClick={() => setDisplayMode('graph')}>Graph</button>
             </div>
           </div>
-          <button onClick={view === 'target' ? onRefreshTarget : view === 'weekly' ? onRefreshWeekly : onRefreshMonthly} className="refresh-btn">Refresh Data</button>
+          <button
+            onClick={() => {
+              console.log('🔘 USER ACTION: APPLY button clicked', {
+                component: 'SalesPerformance',
+                action: 'Manual API trigger',
+                view: view,
+                filters: {
+                  month_start: filters.month_start,
+                  month_end: filters.month_end,
+                  platform: filters.platform,
+                  city: filters.city,
+                  supply_source: filters.supply_source,
+                  manufacturing_city: filters.manufacturing_city,
+                  metric: filters.metric,
+                  brand: filters.brand,
+                  category: filters.category
+                }
+              });
+              if (view === 'target') {
+                onRefreshTarget();
+              } else if (view === 'weekly') {
+                onRefreshWeekly();
+              } else {
+                onRefreshMonthly();
+              }
+            }}
+            className="refresh-btn"
+          >
+            APPLY
+          </button>
           {view === 'target' ? (
             <button onClick={onDownloadTarget} className="btn-ghost" disabled={isDownloadingTarget}>{isDownloadingTarget ? 'Downloading...' : 'Download XLSX'}</button>
           ) : view === 'weekly' ? (

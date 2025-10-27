@@ -38,6 +38,34 @@ const TrendAnalysis = ({
     { key: 'Discount', label: 'Discount' },
   ];
 
+  // Load brands from localStorage on component mount (Hygiene module)
+  const [localOptions, setLocalOptions] = useState(options || {});
+
+  useEffect(() => {
+    try {
+      const userBrandsJson = localStorage.getItem('userBrands');
+      if (userBrandsJson) {
+        const userBrands = JSON.parse(userBrandsJson);
+        // Use Hygiene brands if available, otherwise fall back to Sales brands
+        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || [];
+        setLocalOptions(prev => ({
+          ...prev,
+          brands: hygieneBrands
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading brands from localStorage:', error);
+    }
+  }, []);
+
+  // Update local options when props change (but don't override brands)
+  useEffect(() => {
+    setLocalOptions(prev => ({
+      ...prev,
+      platforms: options?.platforms || prev.platforms || []
+    }));
+  }, [options]);
+
   useEffect(() => {
     setLocalFilters((prev) => ({
       ...prev,
@@ -54,16 +82,20 @@ const TrendAnalysis = ({
   };
 
   const onApply = () => {
+    console.log('🔘 USER ACTION: APPLY button clicked', {
+      component: 'TrendAnalysis',
+      action: 'Manual API trigger',
+      filters: localFilters
+    });
     onChangeFilters && onChangeFilters({ ...localFilters });
     onRefresh && onRefresh();
   };
 
-  // Apply filters immediately on change for seamless UX
-  useEffect(() => {
-    if (!onChangeFilters) return;
-    onChangeFilters({ ...localFilters });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.platform, localFilters.metric1, localFilters.metric2]);
+  // REMOVED: Auto-trigger on filter changes - users must click Apply button
+  // useEffect(() => {
+  //   if (!onChangeFilters) return;
+  //   onChangeFilters({ ...localFilters });
+  // }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.platform, localFilters.metric1, localFilters.metric2]);
 
   // Process data for chart
   const chartData = React.useMemo(() => {
@@ -116,6 +148,7 @@ const TrendAnalysis = ({
           End Date
           <input
             type="date"
+            max={new Date().toISOString().split('T')[0]}
             value={localFilters.endDate}
             onChange={(e) => onField('endDate', e.target.value)}
           />
@@ -127,20 +160,20 @@ const TrendAnalysis = ({
             onChange={(e) => onField('brand', e.target.value)}
           >
             <option value="">All Brands</option>
-            {(options?.brands || []).map((b) => (
+            {(localOptions?.brands || []).map((b) => (
               <option key={b} value={b}>{b}</option>
             ))}
           </select>
         </label>
-        <div className="filter-group">
-          <label>Platform</label>
+        <label>
+          Platform
           <SingleSelectDropdown
-            options={options?.platforms || []}
+            options={localOptions?.platforms || []}
             value={localFilters.platform[0] || ''}
             onChange={(val) => onField('platform', val ? [val] : [])}
             triggerPlaceholder="Select platform..."
           />
-        </div>
+        </label>
         <label>
           Metric 1 (Y-Axis 1)
           <select

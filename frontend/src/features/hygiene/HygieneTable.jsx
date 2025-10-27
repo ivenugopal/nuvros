@@ -14,6 +14,8 @@ const HygieneTable = () => {
     brand: "",
     platform: [],
     hygiene: "All",
+    category: "",
+    subcategory: "",
   });
   const [localFilters, setLocalFilters] = useState({
     startDate: "",
@@ -21,16 +23,21 @@ const HygieneTable = () => {
     brand: "",
     platform: [],
     hygiene: "All",
+    category: "",
+    subcategory: "",
   });
   const [options, setOptions] = useState({
     brands: [],
     platforms: [],
+    categories: [],
+    subcategories: [],
   });
   const [hygieneColumns, setHygieneColumns] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [totalRecords, setTotalRecords] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [brandsLoaded, setBrandsLoaded] = useState(false);
 
   const hygieneOptions = [
     "All",
@@ -56,6 +63,40 @@ const HygieneTable = () => {
     "Sub-category",
   ];
 
+  // Load brands from localStorage on component mount
+  useEffect(() => {
+    try {
+      const userBrandsJson = localStorage.getItem('userBrands');
+      if (userBrandsJson) {
+        const userBrands = JSON.parse(userBrandsJson);
+        // Use Hygiene brands if available, otherwise fall back to Sales or ALL key
+        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || userBrands.ALL || [];
+        setOptions(prev => ({
+          ...prev,
+          brands: hygieneBrands
+        }));
+
+        // Set the first brand as default if brands are available
+        if (hygieneBrands && hygieneBrands.length > 0) {
+          const firstBrand = hygieneBrands[0];
+          setLocalFilters(prev => ({
+            ...prev,
+            brand: firstBrand
+          }));
+          setAppliedFilters(prev => ({
+            ...prev,
+            brand: firstBrand
+          }));
+        }
+      }
+      // Mark brands as loaded
+      setBrandsLoaded(true);
+    } catch (error) {
+      console.error('Error loading brands from localStorage:', error);
+      setBrandsLoaded(true); // Still mark as loaded even on error
+    }
+  }, []);
+
   const loadData = async () => {
     setLoading(true);
     setError(null); // Clear any previous errors
@@ -70,7 +111,13 @@ const HygieneTable = () => {
 
       if (response.success) {
         setTotalRecords(response.data.length);
-        setOptions(response.options);
+        // Only update platforms, categories, and subcategories from API response, keep brands from localStorage
+        setOptions(prev => ({
+          ...prev,
+          platforms: response.options.platforms || [],
+          categories: response.options.categories || [],
+          subcategories: response.options.subcategories || []
+        }));
         setHygieneColumns(response.hygiene_columns);
 
         // Apply pagination to the data
@@ -93,8 +140,11 @@ const HygieneTable = () => {
   };
 
   useEffect(() => {
-    loadData();
-  }, [appliedFilters, currentPage, pageSize]);
+    // Only load data after brands have been initialized
+    if (brandsLoaded) {
+      loadData();
+    }
+  }, [appliedFilters, currentPage, pageSize, brandsLoaded]);
 
   const handleFilterChange = (key, value) => {
     setLocalFilters((prev) => ({
@@ -224,7 +274,7 @@ const HygieneTable = () => {
           />
         </div>
         <div className="filter-group">
-          <label>Category</label>
+          <label>Hygiene Type</label>
           <select
             value={localFilters.hygiene}
             onChange={(e) => handleFilterChange("hygiene", e.target.value)}
@@ -232,6 +282,34 @@ const HygieneTable = () => {
             {hygieneOptions.map((hygiene) => (
               <option key={hygiene} value={hygiene}>
                 {hygiene}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label>Category</label>
+          <select
+            value={localFilters.category}
+            onChange={(e) => handleFilterChange("category", e.target.value)}
+          >
+            <option value="">All Categories</option>
+            {options.categories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="filter-group">
+          <label>Sub-category</label>
+          <select
+            value={localFilters.subcategory}
+            onChange={(e) => handleFilterChange("subcategory", e.target.value)}
+          >
+            <option value="">All Sub-categories</option>
+            {options.subcategories.map((subcategory) => (
+              <option key={subcategory} value={subcategory}>
+                {subcategory}
               </option>
             ))}
           </select>

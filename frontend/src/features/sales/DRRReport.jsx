@@ -110,11 +110,38 @@ const DRRReport = ({
         <div className="date-filters">
           <div className="date-input-group">
             <label htmlFor="drr-start-date">Start Date:</label>
-            <input id="drr-start-date" type="date" value={filters.startDate} onChange={(e) => onChangeFilters({ startDate: e.target.value })} />
+            <input
+              id="drr-start-date"
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => {
+                console.log('📅 USER ACTION: Start Date changed', {
+                  component: 'DRRReport',
+                  oldValue: filters.startDate,
+                  newValue: e.target.value,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ startDate: e.target.value });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="drr-end-date">End Date:</label>
-            <input id="drr-end-date" type="date" value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} />
+            <input
+              id="drr-end-date"
+              type="date"
+              max={new Date().toISOString().split('T')[0]}
+              value={filters.endDate}
+              onChange={(e) => {
+                console.log('📅 USER ACTION: End Date changed', {
+                  component: 'DRRReport',
+                  oldValue: filters.endDate,
+                  newValue: e.target.value,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ endDate: e.target.value });
+              }}
+            />
           </div>
           <div className="date-input-group">
             <label htmlFor="platform-filter">Platform:</label>
@@ -122,7 +149,15 @@ const DRRReport = ({
               id="platform-filter"
               options={filteredPlatforms}
               values={filters.platform || []}
-              onChange={(vals) => onChangeFilters({ platform: vals })}
+              onChange={(vals) => {
+                console.log('🏢 USER ACTION: Platform changed', {
+                  component: 'DRRReport',
+                  oldValue: filters.platform,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ platform: vals });
+              }}
             />
           </div>
           <div className="date-input-group">
@@ -131,7 +166,15 @@ const DRRReport = ({
               id="city-filter"
               options={filteredCities}
               values={filters.city || []}
-              onChange={(vals) => onChangeFilters({ city: vals })}
+              onChange={(vals) => {
+                console.log('🏙️ USER ACTION: City changed', {
+                  component: 'DRRReport',
+                  oldValue: filters.city,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ city: vals });
+              }}
             />
           </div>
           <div className="date-input-group">
@@ -140,7 +183,15 @@ const DRRReport = ({
               id="supply-filter"
               options={filteredSupplies}
               values={filters.supply_source || []}
-              onChange={(vals) => onChangeFilters({ supply_source: vals })}
+              onChange={(vals) => {
+                console.log('📦 USER ACTION: Supply Source changed', {
+                  component: 'DRRReport',
+                  oldValue: filters.supply_source,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ supply_source: vals });
+              }}
             />
           </div>
           <div className="date-input-group">
@@ -149,7 +200,15 @@ const DRRReport = ({
               id="manufacturing-city-filter"
               options={filteredManufacturing}
               values={filters.manufacturing_city || []}
-              onChange={(vals) => onChangeFilters({ manufacturing_city: vals })}
+              onChange={(vals) => {
+                console.log('🏭 USER ACTION: Manufacturing City changed', {
+                  component: 'DRRReport',
+                  oldValue: filters.manufacturing_city,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ manufacturing_city: vals });
+              }}
             />
           </div>
           <div className="date-input-group">
@@ -158,7 +217,15 @@ const DRRReport = ({
               id="category-filter"
               options={filteredCategories}
               values={filters.category || []}
-              onChange={(vals) => onChangeFilters({ category: vals })}
+              onChange={(vals) => {
+                console.log('📂 USER ACTION: Category changed', {
+                  component: 'DRRReport',
+                  oldValue: filters.category,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ category: vals });
+              }}
             />
           </div>
           <div className="date-input-group">
@@ -167,7 +234,15 @@ const DRRReport = ({
               id="sub-category-filter"
               options={filteredSubCategories}
               values={filters.sub_category || []}
-              onChange={(vals) => onChangeFilters({ sub_category: vals })}
+              onChange={(vals) => {
+                console.log('📁 USER ACTION: Sub-Category changed', {
+                  component: 'DRRReport',
+                  oldValue: filters.sub_category,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ sub_category: vals });
+              }}
             />
           </div>
           <div className="date-input-group">
@@ -176,10 +251,40 @@ const DRRReport = ({
               id="drr-brand-filter"
               options={filteredBrands}
               values={filters.brand || []}
-              onChange={(vals) => onChangeFilters({ brand: vals })}
+              onChange={(vals) => {
+                console.log('🏷️ USER ACTION: Brand changed', {
+                  component: 'DRRReport',
+                  oldValue: filters.brand,
+                  newValue: vals,
+                  willTriggerAPI: false
+                });
+                onChangeFilters({ brand: vals });
+              }}
             />
           </div>
-          <button onClick={onRefresh} className="refresh-btn">Refresh Data</button>
+          <button
+            onClick={() => {
+              console.log('🔘 USER ACTION: APPLY button clicked', {
+                component: 'DRRReport',
+                action: 'Manual API trigger',
+                filters: {
+                  startDate: filters.startDate,
+                  endDate: filters.endDate,
+                  platform: filters.platform,
+                  city: filters.city,
+                  supply_source: filters.supply_source,
+                  manufacturing_city: filters.manufacturing_city,
+                  category: filters.category,
+                  sub_category: filters.sub_category,
+                  brand: filters.brand
+                }
+              });
+              onRefresh();
+            }}
+            className="refresh-btn"
+          >
+            APPLY
+          </button>
           <div className="download-section">
             <button onClick={onDownload} className="btn-ghost" disabled={isDownloading}>
               {isDownloading ? 'Downloading...' : 'Download XLSX'}

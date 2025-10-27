@@ -13,6 +13,7 @@ class AppUser(models.Model):
     email = models.CharField(max_length=255, blank=True, null=True)
     password_hash = models.TextField()
     full_name = models.CharField(max_length=100, blank=True, null=True)
+    module_brand_mapping = models.JSONField(default=dict)  # ✅ store module access map
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)

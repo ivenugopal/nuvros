@@ -95,7 +95,9 @@ const SalesContribution = ({
           </div>
           <div className="date-input-group">
             <label htmlFor="contrib-end-date">End Date:</label>
-            <input id="contrib-end-date" type="date" value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} />
+            <input id="contrib-end-date" type="date"
+            max={new Date().toISOString().split('T')[0]}
+            value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} />
           </div>
           <div className="date-input-group">
             <label htmlFor="contrib-platform-filter">Platform:</label>
@@ -125,7 +127,7 @@ const SalesContribution = ({
             <label htmlFor="contrib-sub-category-filter">Sub-Category:</label>
             <MultiSelectDropdown id="contrib-sub-category-filter" options={options.sub_categories || []} values={filters.sub_category || []} onChange={(vals) => onChangeFilters({ sub_category: vals })} />
           </div>
-          <button onClick={onRefresh} className="refresh-btn">Refresh Data</button>
+          <button onClick={onRefresh} className="refresh-btn">APPLY</button>
           <button onClick={onDownload} className="btn-ghost" disabled={isDownloading}>{isDownloading ? 'Downloading...' : 'Download XLSX'}</button>
         </div>
       </div>

@@ -202,7 +202,9 @@ const DailyReport = ({
           </div>
           <div className="date-input-group">
             <label htmlFor="daily-report-end-date">End Date:</label>
-            <input id="daily-report-end-date" type="date" value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} required />
+            <input id="daily-report-end-date" type="date"
+            max={new Date().toISOString().split('T')[0]}
+            value={filters.endDate} onChange={(e) => onChangeFilters({ endDate: e.target.value })} required />
           </div>
           <div className="date-input-group">
             <label htmlFor="daily-report-platform">Platform:</label>
@@ -239,22 +241,22 @@ const DailyReport = ({
             <label htmlFor="daily-report-subcategory-filter">Sub-Category:</label>
             <MultiSelectDropdown id="daily-report-subcategory-filter" options={options.sub_categories || []} values={filters.sub_category || []} onChange={(vals) => onChangeFilters({ sub_category: vals })} />
           </div>
-          <div className="date-input-group">
+          <div className="date-input-group" style={{ minWidth: '360px', width: '360px', flex: '0 0 360px' }}>
             <label>View:</label>
-            <div className="toggle-group">
-              <button className={`toggle-btn ${view === 'platform_item_id' ? 'active' : ''}`} onClick={() => setView('platform_item_id')}>Platform Item ID</button>
-              <button className={`toggle-btn ${view === 'supply_source' ? 'active' : ''}`} onClick={() => setView('supply_source')}>PO/FC-DC</button>
-              <button className={`toggle-btn ${view === 'supply_city' ? 'active' : ''}`} onClick={() => setView('supply_city')}>Sales City</button>
+            <div className="toggle-group" style={{ height: '40px', display: 'flex', alignItems: 'center' }}>
+              <button className={`toggle-btn ${view === 'platform_item_id' ? 'active' : ''}`} onClick={() => setView('platform_item_id')} style={{ height: '36px' }}>Platform Item ID</button>
+              <button className={`toggle-btn ${view === 'supply_source' ? 'active' : ''}`} onClick={() => setView('supply_source')} style={{ height: '36px' }}>PO/FC-DC</button>
+              <button className={`toggle-btn ${view === 'supply_city' ? 'active' : ''}`} onClick={() => setView('supply_city')} style={{ height: '36px' }}>City</button>
             </div>
           </div>
-          <div className="date-input-group">
+          <div className="date-input-group" style={{ minWidth: '180px', width: '180px', flex: '0 0 180px' }}>
             <label>Display:</label>
-            <div className="toggle-group">
-              <button className={`toggle-btn ${displayMode === 'table' ? 'active' : ''}`} onClick={() => setDisplayMode('table')}>Table</button>
-              <button className={`toggle-btn ${displayMode === 'graph' ? 'active' : ''}`} onClick={() => setDisplayMode('graph')}>Graph</button>
+            <div className="toggle-group" style={{ height: '40px', display: 'flex', alignItems: 'center' }}>
+              <button className={`toggle-btn ${displayMode === 'table' ? 'active' : ''}`} onClick={() => setDisplayMode('table')} style={{ height: '36px' }}>Table</button>
+              <button className={`toggle-btn ${displayMode === 'graph' ? 'active' : ''}`} onClick={() => setDisplayMode('graph')} style={{ height: '36px' }}>Graph</button>
             </div>
           </div>
-          <button onClick={onRefresh} className="refresh-btn">Refresh Data</button>
+          <button onClick={onRefresh} className="refresh-btn">APPLY</button>
           <button onClick={onDownload} className="btn-ghost" disabled={isDownloading}>{isDownloading ? 'Downloading...' : 'Download XLSX'}</button>
         </div>
       </div>

@@ -17,6 +17,34 @@ const CorrelationMatrix = ({
     platform: filters?.platform || [],
   }));
 
+  // Load brands from localStorage on component mount (Hygiene module)
+  const [localOptions, setLocalOptions] = useState(options || {});
+
+  useEffect(() => {
+    try {
+      const userBrandsJson = localStorage.getItem('userBrands');
+      if (userBrandsJson) {
+        const userBrands = JSON.parse(userBrandsJson);
+        // Use Hygiene brands if available, otherwise fall back to Sales brands
+        const hygieneBrands = userBrands.Hygiene || userBrands.Sales || [];
+        setLocalOptions(prev => ({
+          ...prev,
+          brands: hygieneBrands
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading brands from localStorage:', error);
+    }
+  }, []);
+
+  // Update local options when props change (but don't override brands)
+  useEffect(() => {
+    setLocalOptions(prev => ({
+      ...prev,
+      platforms: options?.platforms || prev.platforms || []
+    }));
+  }, [options]);
+
   // Define the columns for correlation matrix
   const correlationColumns = useMemo(() => [
     'Price_Hygiene',
@@ -46,16 +74,20 @@ const CorrelationMatrix = ({
   };
 
   const onApply = () => {
+    console.log('🔘 USER ACTION: APPLY button clicked', {
+      component: 'CorrelationMatrix',
+      action: 'Manual API trigger',
+      filters: localFilters
+    });
     onChangeFilters && onChangeFilters({ ...localFilters });
     onRefresh && onRefresh();
   };
 
-  // Apply filters immediately on change for seamless UX
-  useEffect(() => {
-    if (!onChangeFilters) return;
-    onChangeFilters({ ...localFilters });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.platform]);
+  // REMOVED: Auto-trigger on filter changes - users must click Apply button
+  // useEffect(() => {
+  //   if (!onChangeFilters) return;
+  //   onChangeFilters({ ...localFilters });
+  // }, [localFilters.startDate, localFilters.endDate, localFilters.brand, localFilters.platform]);
 
   // Helper function to safely parse percentage values
   const parsePercentageValue = (value) => {
@@ -174,6 +206,7 @@ const CorrelationMatrix = ({
           End Date
           <input
             type="date"
+            max={new Date().toISOString().split('T')[0]}
             value={localFilters.endDate}
             onChange={(e) => onField('endDate', e.target.value)}
           />
@@ -185,21 +218,21 @@ const CorrelationMatrix = ({
             onChange={(e) => onField('brand', e.target.value)}
           >
             <option value="">All Brands</option>
-            {(options?.brands || []).map((b) => (
+            {(localOptions?.brands || []).map((b) => (
               <option key={b} value={b}>{b}</option>
             ))}
           </select>
         </label>
-        <div className="filter-group">
-          <label>Platform</label>
+        <label>
+          Platform
           <MultiSelectDropdown
-            options={options?.platforms || []}
+            options={localOptions?.platforms || []}
             values={localFilters.platform || []}
             onChange={(vals) => onField('platform', vals)}
             triggerPlaceholder="Select platforms..."
             selectAllLabel="All Platforms"
           />
-        </div>
+        </label>
         <button onClick={onApply} className="refresh-btn">Apply</button>
       </div>
     </div>

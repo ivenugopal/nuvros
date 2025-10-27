@@ -1,25 +1,77 @@
 from django.db import connection
 from datetime import datetime, date, timedelta
 from django.utils.crypto import pbkdf2
+import json
+from django.core.cache import cache
 
+
+# 🔹 Step 3: Get all brands once (cached)
+def get_all_brands_from_db():
+    cache_key = "all_brands"
+    brands = cache.get(cache_key)
+    if brands:
+        return brands
+    with connection.cursor() as c:
+        c.execute("""
+            SELECT DISTINCT brand
+            FROM public.sales_master_consolidated_final_test
+            WHERE brand IS NOT NULL
+            ORDER BY brand
+        """)
+        brands = [r[0] for r in c.fetchall()]
+    cache.set(cache_key, brands, timeout=600)  # cache 10 mins
+    return brands
 
 def get_allowed_brands_for_user(username: str):
     """
-    Fetch comma-separated allowed brands for the given username
-    from the users table.
-    Returns a list of allowed brands (upper/lowercase preserved).
+    Fetch allowed brands for all modules for the given username.
+    Expands "ALL" dynamically to actual brand list from the database.
+
+    Returns:
+        dict(module_name -> list of brands)
+        Example:
+        {
+          "Sales": ["Clear", "Bindu"],
+          "Hygiene": ["Kyzile", "Bislere"],
+          "DRR": ["Clear", "Bindu", "Dove"]
+        }
     """
+
+    if not username:
+        return {}
+
+    # 🔹 Step 1: Fetch mapping from DB
     with connection.cursor() as cursor:
         cursor.execute("""
-            SELECT allowed_brands
+            SELECT module_brand_mapping
             FROM public.users_data
             WHERE full_name = %s
         """, [username])
         result = cursor.fetchone()
-        if not result or not result[0]:
-            return []  # no restriction => no brands allowed
-        allowed = [b.strip() for b in result[0].split(',') if b.strip()]
-        return allowed
+
+    if not result or not result[0]:
+        return {}
+
+    # 🔹 Step 2: Safely parse JSONB column
+    try:
+        mapping = json.loads(result[0]) if isinstance(result[0], str) else result[0]
+    except (TypeError, json.JSONDecodeError):
+        return {}
+
+    all_brands = get_all_brands_from_db()
+    expanded_mapping = {}
+
+    # 🔹 Step 4: Expand "ALL" per module and sort alphabetically
+    for module, brands in (mapping or {}).items():
+        if not isinstance(brands, list):
+            continue
+        if any(str(b).upper() == "ALL" for b in brands):
+            expanded_mapping[module] = all_brands.copy()  # already sorted from get_all_brands_from_db
+        else:
+            # Sort user-specific brands alphabetically
+            expanded_mapping[module] = sorted([b.strip() for b in brands if b and b.strip()])
+
+    return expanded_mapping
 
 def parse_date(val):
     try:
