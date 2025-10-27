@@ -28,6 +28,7 @@ import { fetchPlatformSalesSubcategoryDrilldown, fetchAdsOverview, fetchAdsCateg
 import AdsOverview from './features/ads/AdsOverview';
 import CategorySpends from './features/ads/CategorySpends';
 import HygieneOverview from './features/hygiene/HygieneOverview';
+import HygieneEQCOMOverview from './features/hygiene/HygieneEQCOMOverview';
 import HygieneTable from './features/hygiene/HygieneTable';
 import TrendAnalysis from './features/hygiene/TrendAnalysis';
 import CorrelationMatrix from './features/hygiene/CorrelationMatrix';
@@ -428,6 +429,17 @@ function AppContent() {
   const [correlationPlatform, setCorrelationPlatform] = useState([]);
   const [correlationOptions, setCorrelationOptions] = useState({ brands: [], platforms: [] });
 
+  // HygieneEQCOM Overview state
+  const [hygieneEQCOMData, setHygieneEQCOMData] = useState([]);
+  const [hygieneEQCOMScores, setHygieneEQCOMScores] = useState({ price_hygiene_score: 0, coupon_hygiene_score: 0, activation_hygiene_score: 0 });
+  const [hygieneEQCOMLoading, setHygieneEQCOMLoading] = useState(false);
+  const [hygieneEQCOMError, setHygieneEQCOMError] = useState(null);
+  const [hygieneEQCOMStartDate, setHygieneEQCOMStartDate] = useState(defaultMonthStart);
+  const [hygieneEQCOMEndDate, setHygieneEQCOMEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [hygieneEQCOMBrand, setHygieneEQCOMBrand] = useState('');
+  const [hygieneEQCOMPlatform, setHygieneEQCOMPlatform] = useState([]);
+  const [hygieneEQCOMOptions, setHygieneEQCOMOptions] = useState({ brands: [], platforms: [] });
+
   const [catSpendOptions, setCatSpendOptions] = useState({ brands: [] });
 
   const fetchAds = async () => {
@@ -546,6 +558,31 @@ function AppContent() {
     }
   };
 
+  const fetchHygieneEQCOM = async () => {
+    try {
+      setHygieneEQCOMLoading(true);
+      setHygieneEQCOMError(null);
+      const res = await fetchHygieneOverview({
+        startDate: hygieneEQCOMStartDate,
+        endDate: hygieneEQCOMEndDate,
+        brand: hygieneEQCOMBrand,
+        platform: hygieneEQCOMPlatform,
+      });
+      if (res?.success) {
+        setHygieneEQCOMData(res.data || []);
+        const defaultHygieneScores = { price_hygiene_score: 0, coupon_hygiene_score: 0, activation_hygiene_score: 0 };
+        setHygieneEQCOMScores({ ...defaultHygieneScores, ...(res.hygiene_scores || {}) });
+        setHygieneEQCOMOptions(res.options || { brands: [], platforms: [] });
+      } else {
+        setHygieneEQCOMError(res?.error || 'Failed to fetch');
+      }
+    } catch (err) {
+      setHygieneEQCOMError(err.response?.data?.error || err.message);
+    } finally {
+      setHygieneEQCOMLoading(false);
+    }
+  };
+
   // Modules and helpers moved to constants
   
   const toggleModuleExpansion = (moduleKey) => {
@@ -635,10 +672,20 @@ function AppContent() {
 
   useEffect(() => {
     if (!authToken) return;
-    if (activeTab === 'hygiene-overview') {
+    console.log('🔍 Hygiene ECOM check:', { activeTab, activeModule, match: activeTab === 'hygiene-overview' && activeModule === 'hygiene' });
+    if (activeTab === 'hygiene-overview' && activeModule === 'hygiene') {
       fetchHygiene();
     }
-  }, [activeTab, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken]);
+  }, [activeTab, activeModule, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken]);
+
+  useEffect(() => {
+    if (!authToken) return;
+    console.log('🔍 Hygiene EQCOM check:', { activeTab, activeModule, match: activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom' });
+    if (activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom') {
+      console.log('✅ Fetching HygieneEQCOM data...');
+      fetchHygieneEQCOM();
+    }
+  }, [activeTab, activeModule, hygieneEQCOMStartDate, hygieneEQCOMEndDate, hygieneEQCOMBrand, hygieneEQCOMPlatform, authToken]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -3168,7 +3215,7 @@ function AppContent() {
                 }}
                 onRefresh={fetchCategorySpends}
               />
-            ) : activeTab === 'hygiene-overview' ? (
+            ) : activeTab === 'hygiene-overview' && activeModule === 'hygiene' ? (
               <HygieneOverview
                 data={hygieneData}
                 hygieneScores={hygieneScores}
@@ -3188,6 +3235,27 @@ function AppContent() {
                   if (Object.prototype.hasOwnProperty.call(next, 'platform')) setHygienePlatform(next.platform || []);
                 }}
                 onRefresh={fetchHygiene}
+              />
+            ) : activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom' ? (
+              <HygieneEQCOMOverview
+                data={hygieneEQCOMData}
+                hygieneScores={hygieneEQCOMScores}
+                loading={hygieneEQCOMLoading}
+                error={hygieneEQCOMError}
+                filters={{
+                  startDate: hygieneEQCOMStartDate,
+                  endDate: hygieneEQCOMEndDate,
+                  brand: hygieneEQCOMBrand,
+                  platform: hygieneEQCOMPlatform,
+                }}
+                options={hygieneEQCOMOptions}
+                onChangeFilters={(next) => {
+                  if (Object.prototype.hasOwnProperty.call(next, 'startDate')) setHygieneEQCOMStartDate(next.startDate);
+                  if (Object.prototype.hasOwnProperty.call(next, 'endDate')) setHygieneEQCOMEndDate(next.endDate);
+                  if (Object.prototype.hasOwnProperty.call(next, 'brand')) setHygieneEQCOMBrand(next.brand);
+                  if (Object.prototype.hasOwnProperty.call(next, 'platform')) setHygieneEQCOMPlatform(next.platform || []);
+                }}
+                onRefresh={fetchHygieneEQCOM}
               />
             ) : activeTab === 'hygiene-table' ? (
               <HygieneTable />
