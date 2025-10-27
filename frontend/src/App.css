@@ -639,14 +639,14 @@
 
 .refresh-btn:hover,
 .retry-btn:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  filter: brightness(1.05);
 }
 
 .refresh-btn:active,
 .retry-btn:active {
-  transform: translateY(-1px) scale(0.98);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 /* Download button styling */
@@ -688,14 +688,14 @@
 }
 
 .btn-ghost:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 10px 30px rgba(40, 167, 69, 0.4);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
   background: linear-gradient(135deg, #218838 0%, #1ea085 100%);
+  filter: brightness(1.05);
 }
 
 .btn-ghost:active {
-  transform: translateY(-1px) scale(0.98);
-  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+  transform: scale(0.98);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
 }
 
 .btn-ghost:disabled {
