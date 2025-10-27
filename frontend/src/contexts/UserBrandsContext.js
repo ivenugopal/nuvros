@@ -26,27 +26,37 @@ export const UserBrandsProvider = ({ children }) => {
   // Use ref to track if brands have been fetched to prevent duplicate calls
   const hasFetchedRef = useRef(false);
 
+  // Use ref to track selected brand for use in fetchBrands callback
+  const selectedBrandRef = useRef(selectedBrand);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedBrandRef.current = selectedBrand;
+  }, [selectedBrand]);
+
   // Fetch brands from API
   const fetchBrands = useCallback(async () => {
     // Prevent duplicate API calls
     if (hasFetchedRef.current) {
-      console.log('Brands already fetched, skipping duplicate API call');
+      console.log('⚠️ Brands already fetched, skipping duplicate API call');
       return;
     }
 
     const token = localStorage.getItem('token');
     if (!token) {
+      console.log('⚠️ No auth token, skipping brand fetch');
       return; // Don't fetch if not authenticated
     }
 
     try {
       hasFetchedRef.current = true; // Mark as fetched before the call
       setUserBrands(prev => ({ ...prev, loading: true, error: null }));
-      console.log('Fetching user brands from API...');
+      console.log('🔥 Fetching user brands from API...');
       const response = await api.get('/user-brands/');
 
       if (response.data.success) {
         const brands = response.data.brands;
+        console.log('✅ Brands fetched successfully:', brands);
 
         // Update brands state
         setUserBrands({
@@ -59,7 +69,7 @@ export const UserBrandsProvider = ({ children }) => {
 
         // Set first brand as default if not already set
         const defaultBrands = brands.Sales || brands.ALL || brands || [];
-        if (defaultBrands.length > 0 && !selectedBrand) {
+        if (defaultBrands.length > 0 && !selectedBrandRef.current) {
           setSelectedBrand(defaultBrands[0]);
         }
 
@@ -73,7 +83,7 @@ export const UserBrandsProvider = ({ children }) => {
         }));
       }
     } catch (err) {
-      console.error('Error fetching user brands:', err);
+      console.error('❌ Error fetching user brands:', err);
       hasFetchedRef.current = false; // Reset flag on error so it can be retried
       setUserBrands(prev => ({
         ...prev,
@@ -81,15 +91,24 @@ export const UserBrandsProvider = ({ children }) => {
         error: err.response?.data?.error || err.message || 'Failed to fetch brands'
       }));
     }
-  }, []); // Empty dependency array since we're using useCallback
+  }, []); // Empty dependency array is now safe since we use refs
 
   // Fetch brands when component mounts and token is available
   useEffect(() => {
+    console.log('🔍 UserBrandsContext useEffect triggered', {
+      hasFetched: hasFetchedRef.current,
+      hasToken: !!localStorage.getItem('token')
+    });
     const token = localStorage.getItem('token');
-    if (token) {
+    if (token && !hasFetchedRef.current) {
+      console.log('✅ Conditions met, calling fetchBrands');
       fetchBrands();
+    } else {
+      console.log('⏭️ Skipping fetchBrands', {
+        reason: !token ? 'No token' : 'Already fetched'
+      });
     }
-  }, []);
+  }, [fetchBrands]);
 
   const updateUserBrands = (brandsData) => {
     setUserBrands({

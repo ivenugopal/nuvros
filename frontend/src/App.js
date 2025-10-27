@@ -34,7 +34,7 @@ import CorrelationMatrix from './features/hygiene/CorrelationMatrix';
 
 // Inner component that uses UserBrandsContext
 function AppContent() {
-  const { selectedBrand } = useUserBrands(); // Use global brand from context
+  const { selectedBrand, salesBrands, isLoading: brandsLoading } = useUserBrands(); // Use global brand from context
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('token') || '');
   // Stock Levels (snapshot) filters
   const [stockQueryDate, setStockQueryDate] = useState('');
@@ -552,11 +552,8 @@ function AppContent() {
     setExpandedModules(prev => {
       const newExpandedState = !prev[moduleKey];
 
-      // If expanding a module, fetch its specific brands
-      if (newExpandedState && authToken) {
-        console.log(`Module "${moduleKey}" expanded - fetching brands for this module`);
-        fetchUserBrands(moduleKey);
-      }
+      // Note: Brand fetching is now handled by UserBrandsContext globally
+      // No need to fetch brands when expanding modules
 
       return {
         ...prev,
@@ -565,12 +562,19 @@ function AppContent() {
     });
   };
 
-  // Fetch user brands only once when authToken is available
+  // Note: User brands are now fetched by UserBrandsContext on app load
+  // No need for a separate useEffect here
+
+  // Set brandsInitialized when brands are loaded from UserBrandsContext
   useEffect(() => {
-    if (authToken) {
-      fetchUserBrands();
+    if (!brandsLoading && salesBrands.length > 0) {
+      console.log('✅ Brands loaded from context, setting brandsInitialized to true', {
+        salesBrands,
+        timestamp: new Date().toISOString()
+      });
+      setBrandsInitialized(true);
     }
-  }, [authToken]);
+  }, [brandsLoading, salesBrands]);
 
   // Fetch data only once on load when authToken is available and brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
@@ -1515,28 +1519,7 @@ function AppContent() {
   const isAllPlatformsSelected = selectedContribPlatforms.length === 0 || selectedContribPlatforms.length === availableContribPlatforms.length;
   const filteredContribPlatforms = (availableContribPlatforms || []).filter(p => p && p.toLowerCase().includes(contribSearch.toLowerCase()));
 
-  const fetchUserBrands = async (moduleKey = null) => {
-    try {
-      const response = await api.get('/user-brands/');
-      if (response.data.success) {
-        const brands = response.data.brands;
-        console.log('User brands fetched for module:', moduleKey || activeModule, brands);
-
-        // Store in localStorage for global access
-        localStorage.setItem('userBrands', JSON.stringify(brands));
-
-        // Note: Global brand selection is now managed by UserBrandsContext
-        // This function only updates module-specific options if needed
-
-        setBrandsInitialized(true);
-      } else {
-        console.error('Failed to fetch user brands:', response.data.error);
-      }
-    }
-    catch (err) {
-      console.error('Error fetching user brands:', err);
-    }
-  };
+  // Note: fetchUserBrands has been removed - UserBrandsContext handles all brand fetching globally
 
   const fetchData = async () => {
     try {
