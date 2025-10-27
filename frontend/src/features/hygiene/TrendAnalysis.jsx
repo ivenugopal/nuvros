@@ -136,23 +136,25 @@ const TrendAnalysis = ({
   const renderToolbar = () => (
     <div className="filters-toolbar">
       <div className="filters-row">
-        <label>
-          Start Date
+        <div className="date-input-group">
+          <label htmlFor="trend-start-date">Start Date:</label>
           <input
+            id="trend-start-date"
             type="date"
             value={localFilters.startDate}
             onChange={(e) => onField('startDate', e.target.value)}
           />
-        </label>
-        <label>
-          End Date
+        </div>
+        <div className="date-input-group">
+          <label htmlFor="trend-end-date">End Date:</label>
           <input
+            id="trend-end-date"
             type="date"
             max={new Date().toISOString().split('T')[0]}
             value={localFilters.endDate}
             onChange={(e) => onField('endDate', e.target.value)}
           />
-        </label>
+        </div>
         <label>
           Brand
           <select

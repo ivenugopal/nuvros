@@ -327,6 +327,7 @@
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
   background: rgba(255, 255, 255, 0.95);
+  color: #333;
 }
 
 .date-input-group input[type="date"],
@@ -3168,6 +3169,20 @@
   color: #a0aec0;
 }
 
+[data-theme="dark"] .date-input-group input:hover,
+[data-theme="dark"] .platform-select:hover {
+  background: rgba(55, 65, 81, 0.95);
+  border-color: rgba(102, 126, 234, 0.6);
+  color: #f7fafc;
+}
+
+[data-theme="dark"] .date-input-group input:focus,
+[data-theme="dark"] .platform-select:focus {
+  background: rgba(55, 65, 81, 1);
+  border-color: #667eea;
+  color: #ffffff;
+}
+
 [data-theme="dark"] .platform-select option {
   background: rgba(45, 55, 72, 0.95);
   color: #f7fafc;
@@ -4182,6 +4197,7 @@
   opacity: 1;
 }
 
+  color: #333;
 .filters-toolbar input[type="date"]:focus,
 .filters-toolbar select:focus {
   outline: none;
@@ -4196,6 +4212,7 @@
   border-color: rgba(102, 126, 234, 0.4);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  color: #333;
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -4256,6 +4273,20 @@
 
 [data-theme="dark"] .filters-toolbar label {
   color: #e2e8f0 !important;
+[data-theme="dark"] .filters-toolbar input[type="date"]:hover,
+[data-theme="dark"] .filters-toolbar select:hover {
+  background: rgba(55, 65, 81, 0.95);
+  border-color: rgba(102, 126, 234, 0.6);
+  color: #f7fafc;
+}
+
+[data-theme="dark"] .filters-toolbar input[type="date"]:focus,
+[data-theme="dark"] .filters-toolbar select:focus {
+  background: rgba(55, 65, 81, 1);
+  border-color: #667eea;
+  color: #ffffff;
+}
+
   font-weight: 600;
 }
 
@@ -4568,9 +4599,77 @@
   z-index: 10;
 }
 
+/* Date input styles for filters-panel to match filters-toolbar */
+.filters-panel input[type="date"],
+.filters-panel select {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  min-width: 120px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #495057;
+  font-weight: 500;
+  position: relative;
+  cursor: pointer;
+  height: 36px;
+}
+
+.filters-panel input[type="date"]:hover,
+.filters-panel select:hover {
+  border-color: rgba(102, 126, 234, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  background: rgba(255, 255, 255, 0.95);
+  color: #333;
+}
+
+.filters-panel input[type="date"]:focus,
+.filters-panel select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1),
+    0 4px 12px rgba(102, 126, 234, 0.15);
+  transform: translateY(-1px);
+}
+
+.filters-panel input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 2px;
+  margin-left: 4px;
+}
+
+.filters-panel input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 [data-theme="dark"] .filters-panel {
   background: rgba(26, 32, 44, 0.9);
   border-color: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .filters-panel input[type="date"],
+[data-theme="dark"] .filters-panel select {
+  background: rgba(45, 55, 72, 0.9);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #f7fafc;
+}
+
+[data-theme="dark"] .filters-panel input[type="date"]:hover,
+[data-theme="dark"] .filters-panel select:hover {
+  background: rgba(55, 65, 81, 0.95);
+  border-color: rgba(102, 126, 234, 0.6);
+  color: #f7fafc;
+}
+
+[data-theme="dark"] .filters-panel input[type="date"]:focus,
+[data-theme="dark"] .filters-panel select:focus {
+  background: rgba(55, 65, 81, 1);
+  border-color: #667eea;
+  color: #ffffff;
 }
 
 /* Ensure filters don't get affected by table scrolling */

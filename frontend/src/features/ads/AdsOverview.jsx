@@ -69,14 +69,14 @@ const AdsOverview = ({
   const renderToolbar = () => (
     <div className="filters-toolbar">
       <div className="filters-row">
-        <label>
-          Start Date
-          <input type="date" value={localFilters.startDate} onChange={(e) => onField('startDate', e.target.value)} />
-        </label>
-        <label>
-          End Date
-          <input type="date" value={localFilters.endDate} onChange={(e) => onField('endDate', e.target.value)} />
-        </label>
+        <div className="date-input-group">
+          <label htmlFor="ads-start-date">Start Date:</label>
+          <input id="ads-start-date" type="date" value={localFilters.startDate} onChange={(e) => onField('startDate', e.target.value)} />
+        </div>
+        <div className="date-input-group">
+          <label htmlFor="ads-end-date">End Date:</label>
+          <input id="ads-end-date" type="date" max={new Date().toISOString().split('T')[0]} value={localFilters.endDate} onChange={(e) => onField('endDate', e.target.value)} />
+        </div>
         <label>
           Brand
           <select value={localFilters.brand} onChange={(e) => onField('brand', e.target.value)}>

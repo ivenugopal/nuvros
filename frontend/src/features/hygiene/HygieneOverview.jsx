@@ -211,23 +211,25 @@ const HygieneOverview = ({
   const renderToolbar = () => (
     <div className="filters-toolbar">
       <div className="filters-row">
-        <label>
-          Start Date
-          <input 
-            type="date" 
-            value={localFilters.startDate} 
+          <div className="date-input-group">
+            <label htmlFor="hygiene-start-date">Start Date:</label>
+            <input
+            id="hygiene-start-date"
+            type="date"
+            value={localFilters.startDate}
             onChange={(e) => onField('startDate', e.target.value)} 
           />
-        </label>
-        <label>
-          End Date
-          <input 
+          </div>
+          <div className="date-input-group">
+            <label htmlFor="hygiene-end-date">End Date:</label>
+            <input
+            id="hygiene-end-date"
             type="date"
             max={new Date().toISOString().split('T')[0]}
             value={localFilters.endDate} 
             onChange={(e) => onField('endDate', e.target.value)} 
           />
-        </label>
+          </div>
         <label>
           Brand
           <select 

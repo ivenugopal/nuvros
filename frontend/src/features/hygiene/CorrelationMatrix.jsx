@@ -194,23 +194,25 @@ const CorrelationMatrix = ({
   const renderToolbar = () => (
     <div className="filters-toolbar">
       <div className="filters-row">
-        <label>
-          Start Date
+        <div className="date-input-group">
+          <label htmlFor="correlation-start-date">Start Date:</label>
           <input
+            id="correlation-start-date"
             type="date"
             value={localFilters.startDate}
             onChange={(e) => onField('startDate', e.target.value)}
           />
-        </label>
-        <label>
-          End Date
+        </div>
+        <div className="date-input-group">
+          <label htmlFor="correlation-end-date">End Date:</label>
           <input
+            id="correlation-end-date"
             type="date"
             max={new Date().toISOString().split('T')[0]}
             value={localFilters.endDate}
             onChange={(e) => onField('endDate', e.target.value)}
           />
-        </label>
+        </div>
         <label>
           Brand
           <select

@@ -232,17 +232,19 @@ const HygieneTable = () => {
   const renderFilters = () => (
     <div className="filters-panel">
       <div className="filters-row">
-        <div className="filter-group">
-          <label>Start Date</label>
+        <div className="date-input-group">
+          <label htmlFor="hygiene-table-start-date">Start Date:</label>
           <input
+            id="hygiene-table-start-date"
             type="date"
             value={localFilters.startDate}
             onChange={(e) => handleFilterChange("startDate", e.target.value)}
           />
         </div>
-        <div className="filter-group">
-          <label>End Date</label>
+        <div className="date-input-group">
+          <label htmlFor="hygiene-table-end-date">End Date:</label>
           <input
+            id="hygiene-table-end-date"
             type="date"
             value={localFilters.endDate}
             max={new Date().toISOString().split('T')[0]}
