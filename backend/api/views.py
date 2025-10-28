@@ -50,7 +50,13 @@ def get_user_brands(request):
                 """)
                 brands = [r[0] for r in c.fetchall()]
 
-        return Response({"success": True, "brands": brands}, status=status.HTTP_200_OK)
+        # ✅ Return in the format expected by frontend (Sales and ALL categories)
+        brands_response = {
+            "Sales": brands,
+            "ALL": brands
+        }
+
+        return Response({"success": True, "brands": brands_response}, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response(
