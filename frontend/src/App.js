@@ -1861,9 +1861,10 @@ function AppContent() {
           supply_source: Array.isArray(selectedPlatformReportSupplySource) && selectedPlatformReportSupplySource.length > 0 ? selectedPlatformReportSupplySource.join(',') : undefined,
           metric: selectedMetricReport,
           manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined,
-          // Use selectedBrand from header if available and not "All Brands" (empty string)
-          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
-            ? selectedPlatformReportBrands.join(',') : undefined)
+          // Use selectedBrand from header if available - always join array with commas
+          brand: Array.isArray(selectedBrand) && selectedBrand.length > 0 ? selectedBrand.join(',') :
+                 (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+                   ? selectedPlatformReportBrands.join(',') : undefined)
         };
 
         // Remove undefined values
@@ -1966,15 +1967,16 @@ function AppContent() {
         const params = {
           year,
           month,
-          platform: selectedPlatformReport,
-          city: selectedPlatformReportCity,
-          supply_source: selectedPlatformReportSupplySource,
-          category: selectedPlatformReportCategory,
+          platform: Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0 ? selectedPlatformReport.join(',') : undefined,
+          city: Array.isArray(selectedPlatformReportCity) && selectedPlatformReportCity.length > 0 ? selectedPlatformReportCity.join(',') : undefined,
+          supply_source: Array.isArray(selectedPlatformReportSupplySource) && selectedPlatformReportSupplySource.length > 0 ? selectedPlatformReportSupplySource.join(',') : undefined,
+          category: Array.isArray(selectedPlatformReportCategory) && selectedPlatformReportCategory.length > 0 ? selectedPlatformReportCategory.join(',') : undefined,
           metric: selectedMetricReport,
-          manufacturing_city: selectedPlatformReportManufacturingCity,
-          // Use selectedBrand from header if available and not "All Brands" (empty string)
-          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
-            ? selectedPlatformReportBrands.join(',') : undefined)
+          manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined,
+          // Use selectedBrand from header if available - always join array with commas
+          brand: Array.isArray(selectedBrand) && selectedBrand.length > 0 ? selectedBrand.join(',') :
+                 (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+                   ? selectedPlatformReportBrands.join(',') : undefined)
         };
 
         // Remove undefined values
