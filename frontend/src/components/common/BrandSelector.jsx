@@ -1,40 +1,35 @@
 import React from 'react';
 import { useUserBrands } from '../../contexts/UserBrandsContext';
+import MultiSelectDropdown from './MultiSelectDropdown';
 import './BrandSelector.css';
 
 const BrandSelector = () => {
   const { selectedBrand, setSelectedBrand, allBrands, isLoading } = useUserBrands();
 
-  const handleBrandChange = (e) => {
-    setSelectedBrand(e.target.value);
+  const handleBrandChange = (newBrands) => {
+    setSelectedBrand(newBrands);
   };
 
   return (
     <div className="brand-dropdown">
-      <select
-        value={selectedBrand}
-        onChange={handleBrandChange}
+      <MultiSelectDropdown
+        id="brand-selector"
         className="brand-select"
-        aria-label="Select Brand"
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <option value="">Loading brands...</option>
-        ) : (
-          <>
-            <option value="">All Brands</option>
-            {allBrands && allBrands.length > 0 ? (
-              allBrands.map((brand) => (
-                <option key={brand} value={brand}>
-                  {brand}
-                </option>
-              ))
-            ) : (
-              <option value="" disabled>No brands available</option>
-            )}
-          </>
-        )}
-      </select>
+        placeholder="Search brands..."
+        triggerPlaceholder={
+          isLoading
+            ? 'Loading brands...'
+            : selectedBrand.length === 0
+              ? 'All Brands'
+              : selectedBrand.length === 1
+                ? selectedBrand[0]
+                : `${selectedBrand.length} brands selected`
+        }
+        options={allBrands || []}
+        values={selectedBrand}
+        onChange={handleBrandChange}
+        selectAllLabel="All Brands"
+      />
     </div>
   );
 };

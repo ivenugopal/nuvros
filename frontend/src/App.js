@@ -75,9 +75,9 @@ function AppContent() {
       if (invOvPlatform && invOvPlatform.length > 0 && !invOvPlatform.includes('All Platforms')) {
         params.platform = invOvPlatform[0];
       }
-      // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) {
-        params.brand = selectedBrand;
+      // Use selectedBrand from header if available (now an array)
+      if (selectedBrand && selectedBrand.length > 0) {
+        params.brand = selectedBrand.join(',');
       } else if (invOvBrand && invOvBrand.length > 0) {
         params.brand = invOvBrand[0];
       }
@@ -106,7 +106,7 @@ function AppContent() {
       setInvMovError(null);
       const params = {};
       if (invMovDate) params.query_date = invMovDate;
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       if (invMovSupply) params.supply_source = invMovSupply;
       const response = await api.get('/inventory-movements/', { params });
       if (response.data?.success) {
@@ -913,7 +913,7 @@ function AppContent() {
         if (selectedManufacturingCity) params.manufacturing_city = selectedManufacturingCity;
         if (selectedManufacturingCity) params.manufacturing_city = selectedManufacturingCity;
         if (selectedCategory) params.category = selectedCategory;
-        if (selectedBrand) params.brand = selectedBrand;
+        if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
 
         const response = await api.get('/drr-report/', { params });
 
@@ -1021,15 +1021,14 @@ function AppContent() {
       const params = {};
       if (platformSummaryStartDate) params.start_date = platformSummaryStartDate;
       if (platformSummaryEndDate) params.end_date = platformSummaryEndDate;
-      // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      // Use selectedBrand from header if available (now an array)
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
       if (selectedPlatformSummaryCity) params.city = selectedPlatformSummaryCity;
       if (selectedPlatformSummarySupplySource) params.supply_source = selectedPlatformSummarySupplySource;
       if (selectedPlatformSummaryCategory) params.category = selectedPlatformSummaryCategory;
       if (Array.isArray(selectedPlatformSummaryManufacturingCity) && selectedPlatformSummaryManufacturingCity.length > 0) params.manufacturing_city = selectedPlatformSummaryManufacturingCity.join(',');
-      if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
-      
+
       const response = await api.get('/platform-sales-summary/', { params });
       return response.data.success ? response.data.data : [];
     } catch (err) {
@@ -1097,8 +1096,8 @@ function AppContent() {
     try {
       // Platform report doesn't seem to have pagination based on the regular fetch function
       const params = {};
-      // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      // Use selectedBrand from header if available (now an array)
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       if (platformReportMonthStart) params.month_start = platformReportMonthStart;
       if (platformReportMonthEnd) params.month_end = platformReportMonthEnd;
       if (Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0) params.platform = selectedPlatformReport.join(',');
@@ -1359,7 +1358,7 @@ function AppContent() {
       if (Array.isArray(selectedContribCategory) && selectedContribCategory.length > 0) params.category = selectedContribCategory.join(',');
       if (Array.isArray(selectedContribSubCategory) && selectedContribSubCategory.length > 0) params.sub_category = selectedContribSubCategory.join(',');
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (Array.isArray(selectedContribBrands) && selectedContribBrands.length > 0) params.brand = selectedContribBrands.join(',');
       const response = await api.get('/sales-contribution/', { params });
       if (response.data.success) {
@@ -1391,7 +1390,7 @@ function AppContent() {
       // Use the new snapshot endpoint for Stock Levels tab
       const params = {};
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (inventoryBrand) params.brand = inventoryBrand;
       if (inventoryPlatform) params.platform = inventoryPlatform;
       if (inventoryWarehouseCity) params.supply_source = inventoryWarehouseCity;
@@ -1423,7 +1422,7 @@ function AppContent() {
       if (dailyReportStartDate) params.start_date = dailyReportStartDate;
       if (dailyReportEndDate) params.end_date = dailyReportEndDate;
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       if (Array.isArray(selectedDailyReportPlatform) && selectedDailyReportPlatform.length > 0) params.platform = selectedDailyReportPlatform.join(',');
       else if (typeof selectedDailyReportPlatform === 'string' && selectedDailyReportPlatform) params.platform = selectedDailyReportPlatform;
       if (selectedDailyReportMetric) params.metric = selectedDailyReportMetric;
@@ -1431,13 +1430,13 @@ function AppContent() {
       // Use selectedBrand from header if available and not "All Brands" (empty string)
       // Use selectedBrand from header if available and not "All Brands" (empty string)
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
-      if (selectedBrand) params.brand = selectedBrand;
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (Array.isArray(selectedDailyReportBrands) && selectedDailyReportBrands.length > 0) params.brand = selectedDailyReportBrands.join(',');
       if (Array.isArray(selectedDailyReportCities) && selectedDailyReportCities.length > 0) params.city = selectedDailyReportCities.join(',');
       if (Array.isArray(selectedDailyReportSupplySources) && selectedDailyReportSupplySources.length > 0) params.supply_source = selectedDailyReportSupplySources.join(',');
@@ -1633,7 +1632,7 @@ function AppContent() {
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
       // Only pass brand if not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       const response = await api.get('/consolidated-data/', { params });
       if (response.data.success) {
         setData(response.data.data);
@@ -1660,7 +1659,7 @@ function AppContent() {
       // Only pass brand if not "All Brands" (empty string)
       // Only pass brand if not "All Brands" (empty string)
       if (endDate) params.end_date = endDate;
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       const response = await api.get('/sales-target-data/', { params });
       if (response.data.success) {
         setTargetData(response.data.data);
@@ -2052,7 +2051,7 @@ function AppContent() {
       if (selectedDrrCategories && selectedDrrCategories.length > 0) params.category = selectedDrrCategories.join(',');
       if (selectedDrrSubCategories && selectedDrrSubCategories.length > 0) params.sub_category = selectedDrrSubCategories.join(',');
       // Use selectedBrand from header (global brand selector)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       // Also include local DRR brand filters if they exist
       else if (selectedDrrBrands && selectedDrrBrands.length > 0) params.brand = selectedDrrBrands.join(',');
 
@@ -2101,7 +2100,7 @@ function AppContent() {
       setPlatformSummaryError(null);
       const params = {};
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
       if (platformSummaryStartDate) params.start_date = platformSummaryStartDate;
       if (platformSummaryEndDate) params.end_date = platformSummaryEndDate;

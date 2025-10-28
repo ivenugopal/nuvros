@@ -20,8 +20,8 @@ export const UserBrandsProvider = ({ children }) => {
     lastFetched: null
   });
 
-  // Global selected brand state
-  const [selectedBrand, setSelectedBrand] = useState('');
+  // Global selected brand state - now supports multiple brands
+  const [selectedBrand, setSelectedBrand] = useState([]);
 
   // Use ref to track if brands have been fetched to prevent duplicate calls
   const hasFetchedRef = useRef(false);
@@ -71,10 +71,10 @@ export const UserBrandsProvider = ({ children }) => {
         const defaultBrands = brands.Sales || brands.ALL || brands || [];
         if (defaultBrands.length > 0) {
           console.log('🔄 Setting default brand to first available:', defaultBrands[0]);
-          setSelectedBrand(defaultBrands[0]);
+          setSelectedBrand([defaultBrands[0]]); // Set as array for multi-select
         } else {
           console.log('⚠️ No brands available, clearing selected brand');
-          setSelectedBrand('');
+          setSelectedBrand([]);
         }
 
         // Store in localStorage for persistence
@@ -143,7 +143,7 @@ export const UserBrandsProvider = ({ children }) => {
   const resetBrands = useCallback(() => {
     console.log('🔄 Resetting all brand state...');
     hasFetchedRef.current = false; // Reset the fetch flag
-    setSelectedBrand(''); // Clear selected brand
+    setSelectedBrand([]); // Clear selected brands (now an array)
     setUserBrands({
       sales: [],
       all: [],
