@@ -33,33 +33,20 @@ const BrandSelector = () => {
         brands = allBrands;
     }
 
+    console.log('🎯 BrandSelector - moduleBrands for', activeModule, ':', brands?.slice(0, 3));
     return brands;
   }, [activeModule, salesBrands, hygieneBrands, drrBrands, allBrands]);
-
-  // Filter selected brands to only include those that exist in current module's brand list
-  const validSelectedBrands = useMemo(() => {
-    if (!moduleBrands || moduleBrands.length === 0) return [];
-    if (!selectedBrand || selectedBrand.length === 0) return [];
-
-    const valid = selectedBrand.filter(brand => moduleBrands.includes(brand));
-
-    // Log if there's a mismatch
-    if (valid.length !== selectedBrand.length) {
-      console.log('⚠️ BrandSelector - Filtering invalid brands:', {
-        activeModule,
-        selectedBrand,
-        validSelectedBrands: valid,
-        moduleBrands: moduleBrands.slice(0, 3)
-      });
-    }
-
-    return valid;
-  }, [selectedBrand, moduleBrands, activeModule]);
 
   const handleBrandChange = (newBrands) => {
     console.log('🔄 BrandSelector - Manual brand change:', newBrands, 'for module:', activeModule);
     setSelectedBrand(newBrands);
   };
+
+  console.log('🎯 BrandSelector render:', {
+    activeModule,
+    selectedBrand,
+    moduleBrandsCount: moduleBrands?.length
+  });
 
   return (
     <div className="brand-dropdown">
@@ -70,15 +57,16 @@ const BrandSelector = () => {
         triggerPlaceholder={
           isLoading
             ? 'Loading brands...'
-            : validSelectedBrands.length === 0
+            : selectedBrand.length === 0
               ? 'Select brands...'
-              : validSelectedBrands.length === 1
-                ? validSelectedBrands[0]
-                : `${validSelectedBrands.length} brands selected`
+              : selectedBrand.length === 1
+                ? selectedBrand[0]
+                : `${selectedBrand.length} brands selected`
         }
         options={moduleBrands || []}
-        values={validSelectedBrands}
+        values={selectedBrand}
         onChange={handleBrandChange}
+        selectAllLabel="" // Remove "Select All" option
       />
     </div>
   );

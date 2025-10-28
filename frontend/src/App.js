@@ -651,6 +651,13 @@ function AppContent() {
   useEffect(() => {
     if (!authToken || !brandsInitialized) return;
     if (activeTab === 'overall' && activeModule === 'sales') {
+      // Validate that selected brands belong to Sales module
+      const hasInvalidBrand = selectedBrand.some(brand => !salesBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
       console.log('🔥 API TRIGGER - Overall Sales Summary tab loaded:', {
         trigger: 'OverallSummary useEffect',
         activeTab,
@@ -665,7 +672,7 @@ function AppContent() {
       // eslint-disable-next-line no-undef
       fetchTargetData();
     }
-  }, [authToken, brandsInitialized, activeTab, activeModule]); // Trigger when tab changes to 'overall'
+  }, [authToken, brandsInitialized, activeTab, activeModule, selectedBrand, salesBrands]); // Trigger when tab changes to 'overall' or brand changes
 
   // Fetch DRR data only when tab changes or pagination changes, and after brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
@@ -713,88 +720,112 @@ function AppContent() {
   useEffect(() => {
     if (!authToken || !brandsInitialized) return;
     if (activeTab === 'hygiene-overview' && activeModule === 'hygiene') {
-      // Verify selected brand belongs to hygiene module before calling API
-      const isValidBrand = selectedBrand.length > 0 && hygieneBrands.includes(selectedBrand[0]);
+      // Validate that selected brands belong to Hygiene module (or is empty)
+      const hasInvalidBrand = selectedBrand.some(brand => !hygieneBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping Hygiene API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
+      // Brand selection is now optional - call API regardless
+      const isValidBrand = selectedBrand.length === 0 || hygieneBrands.includes(selectedBrand[0]);
       console.log('🔍 Hygiene ECOM check:', {
         activeTab,
         activeModule,
         selectedBrand,
         hygieneBrands: hygieneBrands.slice(0, 3),
-        isValidBrand
+        isValidBrand,
+        note: 'Brand is optional'
       });
       if (isValidBrand) {
-        console.log('✅ Calling Hygiene API with brand:', selectedBrand[0]);
+        console.log('✅ Calling Hygiene API' + (selectedBrand.length > 0 ? ' with brand: ' + selectedBrand[0] : ' without brand filter'));
         fetchHygiene();
-      } else {
-        console.log('⏸️ Skipping Hygiene API - waiting for valid brand selection');
       }
     }
-  }, [activeTab, activeModule, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken, brandsInitialized, selectedBrand, hygieneBrands]);
+  }, [activeTab, activeModule, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken, brandsInitialized, hygieneBrands, selectedBrand]);
 
   useEffect(() => {
     if (!authToken || !brandsInitialized) return;
     if (activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom') {
-      // Verify selected brand belongs to hygiene module before calling API
-      const isValidBrand = selectedBrand.length > 0 && hygieneBrands.includes(selectedBrand[0]);
+      // Validate that selected brands belong to Hygiene module (or is empty)
+      const hasInvalidBrand = selectedBrand.some(brand => !hygieneBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping HygieneEQCOM API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
+      // Brand selection is now optional - call API regardless
+      const isValidBrand = selectedBrand.length === 0 || hygieneBrands.includes(selectedBrand[0]);
       console.log('🔍 Hygiene EQCOM check:', {
         activeTab,
         activeModule,
         selectedBrand,
         hygieneBrands: hygieneBrands.slice(0, 3),
-        isValidBrand
+        isValidBrand,
+        note: 'Brand is optional'
       });
       if (isValidBrand) {
-        console.log('✅ Calling HygieneEQCOM API with brand:', selectedBrand[0]);
+        console.log('✅ Calling HygieneEQCOM API' + (selectedBrand.length > 0 ? ' with brand: ' + selectedBrand[0] : ' without brand filter'));
         fetchHygieneEQCOM();
-      } else {
-        console.log('⏸️ Skipping HygieneEQCOM API - waiting for valid brand selection');
       }
     }
-  }, [activeTab, activeModule, hygieneEQCOMStartDate, hygieneEQCOMEndDate, hygieneEQCOMBrand, hygieneEQCOMPlatform, authToken, brandsInitialized, selectedBrand, hygieneBrands]);
+  }, [activeTab, activeModule, hygieneEQCOMStartDate, hygieneEQCOMEndDate, hygieneEQCOMBrand, hygieneEQCOMPlatform, authToken, brandsInitialized, hygieneBrands, selectedBrand]);
 
   useEffect(() => {
     if (!authToken || !brandsInitialized) return;
     if (activeTab === 'trend-analysis') {
-      // Verify selected brand belongs to current module before calling API
+      // Validate that selected brands belong to the current module (or is empty)
       let moduleBrands = activeModule === 'hygiene' || activeModule === 'hygiene_eqcom' ? hygieneBrands : salesBrands;
-      const isValidBrand = selectedBrand.length > 0 && moduleBrands.includes(selectedBrand[0]);
+      const hasInvalidBrand = selectedBrand.some(brand => !moduleBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping Trend Analysis API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
+      // Brand selection is now optional - call API regardless
+      const isValidBrand = selectedBrand.length === 0 || moduleBrands.includes(selectedBrand[0]);
       console.log('🔍 Trend Analysis check:', {
         activeTab,
         activeModule,
         selectedBrand,
         moduleBrands: moduleBrands.slice(0, 3),
-        isValidBrand
+        isValidBrand,
+        note: 'Brand is optional'
       });
       if (isValidBrand) {
-        console.log('✅ Calling Trend Analysis API with brand:', selectedBrand[0]);
+        console.log('✅ Calling Trend Analysis API' + (selectedBrand.length > 0 ? ' with brand: ' + selectedBrand[0] : ' without brand filter'));
         fetchTrend();
-      } else {
-        console.log('⏸️ Skipping Trend Analysis API - waiting for valid brand selection');
       }
     }
-  }, [activeTab, activeModule, trendStartDate, trendEndDate, trendBrand, trendPlatform, authToken, brandsInitialized, selectedBrand, hygieneBrands, salesBrands]);
+  }, [activeTab, activeModule, trendStartDate, trendEndDate, trendBrand, trendPlatform, authToken, brandsInitialized, hygieneBrands, salesBrands, selectedBrand]);
 
   useEffect(() => {
     if (!authToken || !brandsInitialized) return;
     if (activeTab === 'correlation-matrix') {
-      // Verify selected brand belongs to current module before calling API
+      // Validate that selected brands belong to the current module (or is empty)
       let moduleBrands = activeModule === 'hygiene' || activeModule === 'hygiene_eqcom' ? hygieneBrands : salesBrands;
-      const isValidBrand = selectedBrand.length > 0 && moduleBrands.includes(selectedBrand[0]);
+      const hasInvalidBrand = selectedBrand.some(brand => !moduleBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping Correlation Matrix API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
+      // Brand selection is now optional - call API regardless
+      const isValidBrand = selectedBrand.length === 0 || moduleBrands.includes(selectedBrand[0]);
       console.log('🔍 Correlation Matrix check:', {
         activeTab,
         activeModule,
         selectedBrand,
         moduleBrands: moduleBrands.slice(0, 3),
-        isValidBrand
+        isValidBrand,
+        note: 'Brand is optional'
       });
       if (isValidBrand) {
-        console.log('✅ Calling Correlation Matrix API with brand:', selectedBrand[0]);
+        console.log('✅ Calling Correlation Matrix API' + (selectedBrand.length > 0 ? ' with brand: ' + selectedBrand[0] : ' without brand filter'));
         fetchCorrelation();
-      } else {
-        console.log('⏸️ Skipping Correlation Matrix API - waiting for valid brand selection');
       }
     }
-  }, [activeTab, activeModule, correlationStartDate, correlationEndDate, correlationBrand, correlationPlatform, authToken, brandsInitialized, selectedBrand, hygieneBrands, salesBrands]);
+  }, [activeTab, activeModule, correlationStartDate, correlationEndDate, correlationBrand, correlationPlatform, authToken, brandsInitialized, hygieneBrands, salesBrands, selectedBrand]);
 
   // Fetch SalesPerformance data only when tab or view changes and after brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
@@ -1696,12 +1727,17 @@ function AppContent() {
 
   const fetchData = async () => {
     try {
+      // Validate that selected brands belong to Sales module before passing to API
+      const validSalesBrands = selectedBrand.filter(brand => salesBrands.includes(brand));
+
       console.log('🌐 API CALL - fetchData() called', {
         endpoint: '/consolidated-data/',
         params: {
           start_date: startDate,
           end_date: endDate,
-          brand: selectedBrand
+          selectedBrand,
+          validSalesBrands,
+          salesBrands: salesBrands.slice(0, 3)
         }
       });
       setLoading(true);
@@ -1709,8 +1745,13 @@ function AppContent() {
       const params = {};
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
-      // Only pass brand if not "All Brands" (empty string)
-      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
+      // Only pass brand if it belongs to Sales module
+      if (validSalesBrands && validSalesBrands.length > 0) {
+        params.brand = validSalesBrands.join(',');
+        console.log('✅ Passing valid Sales brands to API:', validSalesBrands);
+      } else {
+        console.log('ℹ️ No valid Sales brands to pass to API');
+      }
       const response = await api.get('/consolidated-data/', { params });
       if (response.data.success) {
         setData(response.data.data);
@@ -1727,17 +1768,22 @@ function AppContent() {
   };
 
   const fetchTargetData = async () => {
-      // Only pass brand if not "All Brands" (empty string)
     try {
+      // Validate that selected brands belong to Sales module before passing to API
+      const validSalesBrands = selectedBrand.filter(brand => salesBrands.includes(brand));
+
       setTargetLoading(true);
       setTargetError(null); // Clear any previous errors
       const params = {};
-      // Only pass brand if not "All Brands" (empty string)
       if (startDate) params.start_date = startDate;
-      // Only pass brand if not "All Brands" (empty string)
-      // Only pass brand if not "All Brands" (empty string)
       if (endDate) params.end_date = endDate;
-      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
+      // Only pass brand if it belongs to Sales module
+      if (validSalesBrands && validSalesBrands.length > 0) {
+        params.brand = validSalesBrands.join(',');
+        console.log('✅ Passing valid Sales brands to Target API:', validSalesBrands);
+      } else {
+        console.log('ℹ️ No valid Sales brands to pass to Target API');
+      }
       const response = await api.get('/sales-target-data/', { params });
       if (response.data.success) {
         setTargetData(response.data.data);
@@ -2128,10 +2174,18 @@ function AppContent() {
       if (selectedDrrManufacturingCities && selectedDrrManufacturingCities.length > 0) params.manufacturing_city = selectedDrrManufacturingCities.join(',');
       if (selectedDrrCategories && selectedDrrCategories.length > 0) params.category = selectedDrrCategories.join(',');
       if (selectedDrrSubCategories && selectedDrrSubCategories.length > 0) params.sub_category = selectedDrrSubCategories.join(',');
-      // Use selectedBrand from header (global brand selector)
-      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
-      // Also include local DRR brand filters if they exist
-      else if (selectedDrrBrands && selectedDrrBrands.length > 0) params.brand = selectedDrrBrands.join(',');
+
+      // Validate that selected brands belong to Sales module before passing to API
+      const validSalesBrands = selectedBrand.filter(brand => salesBrands.includes(brand));
+      if (validSalesBrands && validSalesBrands.length > 0) {
+        params.brand = validSalesBrands.join(',');
+        console.log('✅ DRR: Passing valid Sales brands to API:', validSalesBrands);
+      } else if (selectedDrrBrands && selectedDrrBrands.length > 0) {
+        // Also include local DRR brand filters if they exist
+        params.brand = selectedDrrBrands.join(',');
+      } else {
+        console.log('ℹ️ DRR: No valid Sales brands to pass to API');
+      }
 
       const response = await api.get('/drr-report/', { params });
       if (response.data.success) {
@@ -2692,8 +2746,6 @@ function AppContent() {
   const onAuthChange = (e) => setAuthForm({ ...authForm, [e.target.name]: e.target.value });
 
   const doLogin = async (e) => {
-        // Fetch user brands immediately after signup
-        await refetchBrands();
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
@@ -2705,6 +2757,10 @@ function AppContent() {
       if (res.data.success && res.data.token) {
         localStorage.setItem('token', res.data.token);
         setAuthToken(res.data.token);
+        // Always open Sales module on login
+        setActiveModule('sales');
+        setContextActiveModule('sales');
+        setActiveTab('overall');
         // Fetch user brands immediately after login
         await refetchBrands();
       } else {
@@ -2747,6 +2803,7 @@ function AppContent() {
     resetBrands(); // Clear all brand state on logout
     setAuthToken('');
     setActiveModule('sales'); // Always reset to Sales module on logout
+    setContextActiveModule('sales'); // Also reset context's activeModule
     setActiveTab('overall'); // Reset to first tab in Sales module
   };
 

@@ -55,7 +55,7 @@ export const UserBrandsProvider = ({ children }) => {
     activeModuleRef.current = activeModule;
   }, [activeModule]);
 
-  // Auto-switch brand selection when module changes
+  // Auto-switch brand selection when module changes - now optional
   useEffect(() => {
     // Wait for brands to load
     if (userBrands.loading || (!userBrands.sales.length && !userBrands.hygiene.length && !userBrands.drr.length)) {
@@ -63,6 +63,7 @@ export const UserBrandsProvider = ({ children }) => {
     }
 
     console.log('🔄 UserBrandsContext - activeModule changed:', activeModule);
+    console.log('📦 Current selectedBrand:', selectedBrand);
     console.log('📦 moduleSelectedBrands:', moduleSelectedBrands);
 
     // Get the brands for the current module
@@ -84,18 +85,11 @@ export const UserBrandsProvider = ({ children }) => {
       }
     }
 
-    // No valid saved selection - select first brand
-    if (currentModuleBrands.length > 0) {
-      const firstBrand = [currentModuleBrands[0]];
-      console.log('🔄 Auto-selecting first brand for', activeModule, ':', firstBrand);
-      setSelectedBrand(firstBrand);
-      // Save this selection
-      setModuleSelectedBrands(prev => ({
-        ...prev,
-        [activeModule]: firstBrand
-      }));
-    }
-  }, [activeModule, userBrands, moduleSelectedBrands]);
+    // Brand selection is now optional - clear selection when no saved selection exists
+    console.log('ℹ️ No saved brand selection for', activeModule, '- clearing selectedBrand');
+    console.log('🧹 Clearing selectedBrand from:', selectedBrand, 'to: []');
+    setSelectedBrand([]);
+  }, [activeModule, userBrands]);
 
   // Fetch brands from API
   const fetchBrands = useCallback(async () => {
@@ -137,27 +131,8 @@ export const UserBrandsProvider = ({ children }) => {
           lastFetched: new Date().toISOString()
         });
 
-        // Auto-select first brand from the active module (default to sales)
-        const currentActiveModule = activeModuleRef.current;
-        const currentModuleBrands = currentActiveModule === 'sales' ? salesBrandsList
-          : currentActiveModule === 'hygiene' || currentActiveModule === 'hygiene_eqcom' ? hygieneBrandsList
-          : currentActiveModule === 'drr' ? drrBrandsList
-          : salesBrandsList;
-
-        if (currentModuleBrands.length > 0 && selectedBrandRef.current.length === 0) {
-          console.log('🔄 Auto-selecting first brand on initial load for module:', currentActiveModule, '→', currentModuleBrands[0]);
-          const firstBrand = [currentModuleBrands[0]];
-          setSelectedBrand(firstBrand);
-          // Save to module-specific selection using the current active module from ref
-          setModuleSelectedBrands(prev => {
-            const updated = {
-              ...prev,
-              [currentActiveModule]: firstBrand
-            };
-            console.log('💾 Initial brand save - moduleSelectedBrands updated:', updated);
-            return updated;
-          });
-        }
+        // Brand selection is now optional - no auto-selection on initial load
+        console.log('✅ Brands loaded - user can select from dropdown (optional)');
 
         // Store in localStorage for persistence
         localStorage.setItem('userBrands', JSON.stringify(brands));
