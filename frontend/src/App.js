@@ -35,7 +35,19 @@ import CorrelationMatrix from './features/hygiene/CorrelationMatrix';
 
 // Inner component that uses UserBrandsContext
 function AppContent() {
-  const { selectedBrand, salesBrands, isLoading: brandsLoading, refetchBrands, resetBrands } = useUserBrands(); // Use global brand from context
+  const {
+    selectedBrand,
+    setSelectedBrand,
+    salesBrands,
+    hygieneBrands,
+    drrBrands,
+    activeModule: contextActiveModule,
+    setActiveModule: setContextActiveModule,
+    moduleSelectedBrands,
+    isLoading: brandsLoading,
+    refetchBrands,
+    resetBrands
+  } = useUserBrands(); // Use global brand from context
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('token') || '');
   // Stock Levels (snapshot) filters
   const [stockQueryDate, setStockQueryDate] = useState('');
@@ -626,6 +638,14 @@ function AppContent() {
     }
   }, [brandsLoading, salesBrands]);
 
+  // Sync activeModule with context - brand selection is now handled in UserBrandsContext
+  useEffect(() => {
+    if (activeModule !== contextActiveModule) {
+      console.log('🔄 App.js - Syncing activeModule to context:', activeModule);
+      setContextActiveModule(activeModule);
+    }
+  }, [activeModule, contextActiveModule, setContextActiveModule]);
+
   // Fetch data only once on load when authToken is available and brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
@@ -688,35 +708,90 @@ function AppContent() {
   }, [activeTab, adsStartDate, adsEndDate, adsBrand, adsPlatform, adsGroupBy, authToken, catSpendStartDate, catSpendEndDate, catSpendBrands]);
 
   useEffect(() => {
-    if (!authToken) return;
-    console.log('🔍 Hygiene ECOM check:', { activeTab, activeModule, match: activeTab === 'hygiene-overview' && activeModule === 'hygiene' });
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'hygiene-overview' && activeModule === 'hygiene') {
-      fetchHygiene();
+      // Verify selected brand belongs to hygiene module before calling API
+      const isValidBrand = selectedBrand.length > 0 && hygieneBrands.includes(selectedBrand[0]);
+      console.log('🔍 Hygiene ECOM check:', {
+        activeTab,
+        activeModule,
+        selectedBrand,
+        hygieneBrands: hygieneBrands.slice(0, 3),
+        isValidBrand
+      });
+      if (isValidBrand) {
+        console.log('✅ Calling Hygiene API with brand:', selectedBrand[0]);
+        fetchHygiene();
+      } else {
+        console.log('⏸️ Skipping Hygiene API - waiting for valid brand selection');
+      }
     }
-  }, [activeTab, activeModule, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken]);
+  }, [activeTab, activeModule, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken, brandsInitialized, selectedBrand, hygieneBrands]);
 
   useEffect(() => {
-    if (!authToken) return;
-    console.log('🔍 Hygiene EQCOM check:', { activeTab, activeModule, match: activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom' });
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom') {
-      console.log('✅ Fetching HygieneEQCOM data...');
-      fetchHygieneEQCOM();
+      // Verify selected brand belongs to hygiene module before calling API
+      const isValidBrand = selectedBrand.length > 0 && hygieneBrands.includes(selectedBrand[0]);
+      console.log('🔍 Hygiene EQCOM check:', {
+        activeTab,
+        activeModule,
+        selectedBrand,
+        hygieneBrands: hygieneBrands.slice(0, 3),
+        isValidBrand
+      });
+      if (isValidBrand) {
+        console.log('✅ Calling HygieneEQCOM API with brand:', selectedBrand[0]);
+        fetchHygieneEQCOM();
+      } else {
+        console.log('⏸️ Skipping HygieneEQCOM API - waiting for valid brand selection');
+      }
     }
-  }, [activeTab, activeModule, hygieneEQCOMStartDate, hygieneEQCOMEndDate, hygieneEQCOMBrand, hygieneEQCOMPlatform, authToken]);
+  }, [activeTab, activeModule, hygieneEQCOMStartDate, hygieneEQCOMEndDate, hygieneEQCOMBrand, hygieneEQCOMPlatform, authToken, brandsInitialized, selectedBrand, hygieneBrands]);
 
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'trend-analysis') {
-      fetchTrend();
+      // Verify selected brand belongs to current module before calling API
+      let moduleBrands = activeModule === 'hygiene' || activeModule === 'hygiene_eqcom' ? hygieneBrands : salesBrands;
+      const isValidBrand = selectedBrand.length > 0 && moduleBrands.includes(selectedBrand[0]);
+      console.log('🔍 Trend Analysis check:', {
+        activeTab,
+        activeModule,
+        selectedBrand,
+        moduleBrands: moduleBrands.slice(0, 3),
+        isValidBrand
+      });
+      if (isValidBrand) {
+        console.log('✅ Calling Trend Analysis API with brand:', selectedBrand[0]);
+        fetchTrend();
+      } else {
+        console.log('⏸️ Skipping Trend Analysis API - waiting for valid brand selection');
+      }
     }
-  }, [activeTab, trendStartDate, trendEndDate, trendBrand, trendPlatform, authToken]);
+  }, [activeTab, activeModule, trendStartDate, trendEndDate, trendBrand, trendPlatform, authToken, brandsInitialized, selectedBrand, hygieneBrands, salesBrands]);
 
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'correlation-matrix') {
-      fetchCorrelation();
+      // Verify selected brand belongs to current module before calling API
+      let moduleBrands = activeModule === 'hygiene' || activeModule === 'hygiene_eqcom' ? hygieneBrands : salesBrands;
+      const isValidBrand = selectedBrand.length > 0 && moduleBrands.includes(selectedBrand[0]);
+      console.log('🔍 Correlation Matrix check:', {
+        activeTab,
+        activeModule,
+        selectedBrand,
+        moduleBrands: moduleBrands.slice(0, 3),
+        isValidBrand
+      });
+      if (isValidBrand) {
+        console.log('✅ Calling Correlation Matrix API with brand:', selectedBrand[0]);
+        fetchCorrelation();
+      } else {
+        console.log('⏸️ Skipping Correlation Matrix API - waiting for valid brand selection');
+      }
     }
-  }, [activeTab, correlationStartDate, correlationEndDate, correlationBrand, correlationPlatform, authToken]);
+  }, [activeTab, activeModule, correlationStartDate, correlationEndDate, correlationBrand, correlationPlatform, authToken, brandsInitialized, selectedBrand, hygieneBrands, salesBrands]);
 
   // Fetch SalesPerformance data only when tab or view changes and after brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
@@ -2668,6 +2743,8 @@ function AppContent() {
     localStorage.removeItem('userBrands');
     resetBrands(); // Clear all brand state on logout
     setAuthToken('');
+    setActiveModule('sales'); // Always reset to Sales module on logout
+    setActiveTab('overall'); // Reset to first tab in Sales module
   };
 
   if (!authToken) {
