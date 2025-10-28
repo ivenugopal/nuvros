@@ -646,12 +646,15 @@ function AppContent() {
     }
   }, [activeModule, contextActiveModule, setContextActiveModule]);
 
-  // Fetch data only once on load when authToken is available and brands are initialized
+  // Fetch data when Overall Sales Summary tab is active and brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
-    if (authToken && brandsInitialized) {
-      console.log('🔥 API TRIGGER - Initial load only:', {
-        trigger: 'OverallSummary useEffect (load only)',
+    if (!authToken || !brandsInitialized) return;
+    if (activeTab === 'overall' && activeModule === 'sales') {
+      console.log('🔥 API TRIGGER - Overall Sales Summary tab loaded:', {
+        trigger: 'OverallSummary useEffect',
+        activeTab,
+        activeModule,
         startDate,
         endDate,
         selectedBrand,
@@ -662,7 +665,7 @@ function AppContent() {
       // eslint-disable-next-line no-undef
       fetchTargetData();
     }
-  }, [authToken, brandsInitialized]); // Only authToken and brandsInitialized dependencies - API called once on load
+  }, [authToken, brandsInitialized, activeTab, activeModule]); // Trigger when tab changes to 'overall'
 
   // Fetch DRR data only when tab changes or pagination changes, and after brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
