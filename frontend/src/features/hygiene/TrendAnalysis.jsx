@@ -38,16 +38,6 @@ const TrendAnalysis = ({
     { key: 'Category BSR', label: 'Category BSR' },
     { key: 'Discount', label: 'Discount' },
   ];
-  // Update local options when props change
-  // Load brands from localStorage on component mount (Hygiene module)
-  const [localOptions, setLocalOptions] = useState(options || {});
-  // Update local options when props change (but don't override brands)
-  useEffect(() => {
-    setLocalOptions(prev => ({
-      ...prev,
-      platforms: options?.platforms || prev.platforms || []
-    }));
-  }, [options]);
 
   useEffect(() => {
     setLocalFilters((prev) => ({
@@ -83,19 +73,55 @@ const TrendAnalysis = ({
   const chartData = React.useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) return [];
 
-    // Sort data by date
-    const sortedData = [...data].sort((a, b) => new Date(a.Date) - new Date(b.Date));
+    // Group data by date (normalized to date string only, no time) and aggregate metrics
+    const dateMap = new Map();
 
-    return sortedData.map((item) => ({
-      date: item.Date,
-      dateFormatted: new Date(item.Date).toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-      }),
-      [localFilters.metric1]: Number(item[localFilters.metric1]) || 0,
-      [localFilters.metric2]: Number(item[localFilters.metric2]) || 0,
-    }));
+    data.forEach((item) => {
+      if (!item.Date) return;
+
+      // Normalize date to YYYY-MM-DD format to ensure proper grouping
+      const dateObj = new Date(item.Date);
+      const normalizedDate = dateObj.toISOString().split('T')[0]; // Get YYYY-MM-DD only
+
+      const metric1Value = Number(item[localFilters.metric1]) || 0;
+      const metric2Value = Number(item[localFilters.metric2]) || 0;
+
+      if (!dateMap.has(normalizedDate)) {
+        dateMap.set(normalizedDate, {
+          date: normalizedDate,
+          metric1Values: [],
+          metric2Values: []
+        });
+      }
+
+      const entry = dateMap.get(normalizedDate);
+      entry.metric1Values.push(metric1Value);
+      entry.metric2Values.push(metric2Value);
+    });
+
+    // Calculate averages and format data
+    const aggregatedData = Array.from(dateMap.entries()).map(([normalizedDate, entry]) => {
+      const avg1 = entry.metric1Values.length > 0
+        ? entry.metric1Values.reduce((sum, val) => sum + val, 0) / entry.metric1Values.length
+        : 0;
+      const avg2 = entry.metric2Values.length > 0
+        ? entry.metric2Values.reduce((sum, val) => sum + val, 0) / entry.metric2Values.length
+        : 0;
+
+      return {
+        date: normalizedDate,
+        dateFormatted: new Date(normalizedDate).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+        }),
+        [localFilters.metric1]: avg1,
+        [localFilters.metric2]: avg2,
+      };
+    });
+
+    // Sort by date chronologically
+    return aggregatedData.sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [data, localFilters.metric1, localFilters.metric2]);
 
   // Custom tooltip
@@ -139,7 +165,7 @@ const TrendAnalysis = ({
       <div className="date-input-group">
         <label>Platform</label>
         <SingleSelectDropdown
-          options={localOptions?.platforms || []}
+          options={options?.platforms || []}
           value={localFilters.platform[0] || ''}
           onChange={(val) => onField('platform', val ? [val] : [])}
           placeholder="Select platform..."
@@ -216,6 +242,8 @@ const TrendAnalysis = ({
                 angle={-45}
                 textAnchor="end"
                 height={80}
+                interval="preserveStartEnd"
+                minTickGap={30}
               />
               <YAxis
                 yAxisId="left"
