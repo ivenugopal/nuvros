@@ -660,7 +660,7 @@ const SalesPerformance = ({
       )}
 
       {view === 'weekly' && !loadingWeekly && !errorWeekly && (
-        <div className={displayMode === 'table' ? 'table-container' : 'chart-container'}>
+        <div className={displayMode === 'table' ? 'data-table' : 'chart-container'}>
           {exceedsThreeMonths ? (
             <div className="error" style={{ textAlign: 'center', padding: '2rem', backgroundColor: '#fff3cd', border: '1px solid #ffeaa7', borderRadius: '4px', margin: '1rem 0' }}>
               <h3 style={{ color: '#856404', margin: '0 0 0.5rem 0' }}>Date Range Too Large</h3>
