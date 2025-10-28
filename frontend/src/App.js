@@ -2815,7 +2815,7 @@ function AppContent() {
         <div className="App">
           <header className="App-header">
             <div className="header-content">
-              <h1>NuvrOS</h1>
+              <h1>Nuvr</h1>
               <p>Please {authView === 'login' ? 'sign in' : 'sign up'} to continue</p>
             </div>
             <div className="header-actions">
