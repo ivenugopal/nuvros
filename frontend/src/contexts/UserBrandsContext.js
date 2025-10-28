@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { api } from '../services/api';
 
 const UserBrandsContext = createContext();
 
@@ -19,6 +20,100 @@ export const UserBrandsProvider = ({ children }) => {
     lastFetched: null
   });
 
+  // Global selected brand state
+  const [selectedBrand, setSelectedBrand] = useState('');
+
+  // Use ref to track if brands have been fetched to prevent duplicate calls
+  const hasFetchedRef = useRef(false);
+
+  // Use ref to track selected brand for use in fetchBrands callback
+  const selectedBrandRef = useRef(selectedBrand);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedBrandRef.current = selectedBrand;
+  }, [selectedBrand]);
+
+  // Fetch brands from API
+  const fetchBrands = useCallback(async () => {
+    // Prevent duplicate API calls
+    if (hasFetchedRef.current) {
+      console.log('⚠️ Brands already fetched, skipping duplicate API call');
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      console.log('⚠️ No auth token, skipping brand fetch');
+      return; // Don't fetch if not authenticated
+    }
+
+    try {
+      hasFetchedRef.current = true; // Mark as fetched before the call
+      setUserBrands(prev => ({ ...prev, loading: true, error: null }));
+      console.log('🔥 Fetching user brands from API...');
+      const response = await api.get('/user-brands/');
+
+      if (response.data.success) {
+        const brands = response.data.brands;
+        console.log('✅ Brands fetched successfully:', brands);
+
+        // Update brands state
+        setUserBrands({
+          sales: brands.Sales || brands.ALL || brands || [],
+          all: brands.ALL || brands.Sales || brands || [],
+          loading: false,
+          error: null,
+          lastFetched: new Date().toISOString()
+        });
+
+        // Always set first brand as default when fetching brands (reset on login)
+        const defaultBrands = brands.Sales || brands.ALL || brands || [];
+        if (defaultBrands.length > 0) {
+          console.log('🔄 Setting default brand to first available:', defaultBrands[0]);
+          setSelectedBrand(defaultBrands[0]);
+        } else {
+          console.log('⚠️ No brands available, clearing selected brand');
+          setSelectedBrand('');
+        }
+
+        // Store in localStorage for persistence
+        localStorage.setItem('userBrands', JSON.stringify(brands));
+      } else {
+        setUserBrands(prev => ({
+          ...prev,
+          loading: false,
+          error: response.data.error || 'Failed to fetch brands'
+        }));
+      }
+    } catch (err) {
+      console.error('❌ Error fetching user brands:', err);
+      hasFetchedRef.current = false; // Reset flag on error so it can be retried
+      setUserBrands(prev => ({
+        ...prev,
+        loading: false,
+        error: err.response?.data?.error || err.message || 'Failed to fetch brands'
+      }));
+    }
+  }, []); // Empty dependency array is now safe since we use refs
+
+  // Fetch brands when component mounts and token is available
+  useEffect(() => {
+    console.log('🔍 UserBrandsContext useEffect triggered', {
+      hasFetched: hasFetchedRef.current,
+      hasToken: !!localStorage.getItem('token')
+    });
+    const token = localStorage.getItem('token');
+    if (token && !hasFetchedRef.current) {
+      console.log('✅ Conditions met, calling fetchBrands');
+      fetchBrands();
+    } else {
+      console.log('⏭️ Skipping fetchBrands', {
+        reason: !token ? 'No token' : 'Already fetched'
+      });
+    }
+  }, [fetchBrands]);
+
   const updateUserBrands = (brandsData) => {
     setUserBrands({
       sales: brandsData.Sales || [],
@@ -37,16 +132,44 @@ export const UserBrandsProvider = ({ children }) => {
     setUserBrands(prev => ({ ...prev, error, loading: false }));
   };
 
+  // Force refetch brands (useful after login)
+  const refetchBrands = useCallback(async () => {
+    console.log('🔄 Force refetching brands...');
+    hasFetchedRef.current = false; // Reset the flag to allow refetch
+    await fetchBrands();
+  }, [fetchBrands]);
+
+  // Reset all brand state (useful on logout)
+  const resetBrands = useCallback(() => {
+    console.log('🔄 Resetting all brand state...');
+    hasFetchedRef.current = false; // Reset the fetch flag
+    setSelectedBrand(''); // Clear selected brand
+    setUserBrands({
+      sales: [],
+      all: [],
+      loading: false,
+      error: null,
+      lastFetched: null
+    });
+    localStorage.removeItem('userBrands');
+  }, []);
+
   const value = {
     userBrands,
     updateUserBrands,
     setLoading,
     setError,
+    fetchBrands, // Expose fetch function
+    refetchBrands, // Expose refetch function for login scenarios
+    resetBrands, // Expose reset function for logout scenarios
     // Convenience getters
     salesBrands: userBrands.sales,
     allBrands: userBrands.all,
     isLoading: userBrands.loading,
-    hasError: userBrands.error
+    hasError: userBrands.error,
+    // Global brand selection
+    selectedBrand,
+    setSelectedBrand
   };
 
   return (

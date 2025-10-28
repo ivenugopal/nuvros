@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import MultiSelectDropdown from '../../components/common/MultiSelectDropdown';
 import { useUserBrands } from '../../contexts/UserBrandsContext';
 
-const HygieneOverview = ({
+const HygieneEQCOMOverview = ({
   data,
   hygieneScores,
   loading,
@@ -45,7 +45,7 @@ const HygieneOverview = ({
 
   const onApply = () => {
     console.log('🔘 USER ACTION: APPLY button clicked', {
-      component: 'HygieneOverview',
+      component: 'HygieneEQCOMOverview',
       action: 'Manual API trigger',
       filters: localFilters
     });
@@ -60,40 +60,13 @@ const HygieneOverview = ({
           <h3>Price Hygiene Score</h3>
         </div>
         <div className="stat-card-value">
-          {hygieneScores?.price_hygiene_score !== undefined 
-            ? `${hygieneScores.price_hygiene_score}%` 
+          {hygieneScores?.price_hygiene_score !== undefined
+            ? `${hygieneScores.price_hygiene_score}%`
             : '—'
           }
         </div>
         <div className="stat-card-description">
           Price Rule = Live Price validation
-        </div>
-      </div>
-      <div className="stat-card">
-        <div className="stat-card-header">
-          <h3>Coupon Hygiene Score</h3>
-        </div>
-        <div className="stat-card-value">
-          {hygieneScores?.coupon_hygiene_score !== undefined 
-            ? `${hygieneScores.coupon_hygiene_score}%` 
-            : '—'
-          }
-        </div>
-        <div className="stat-card-description">
-          Coupon Rule = Live Coupon validation
-        </div>
-      </div>
-      <div className="stat-card">
-        <div className="stat-card-header">
-          <h3>Activation Hygiene Score</h3>
-        </div>
-        <div className="stat-card-value">
-          {hygieneScores && Object.prototype.hasOwnProperty.call(hygieneScores, 'activation_hygiene_score')
-            ? `${hygieneScores.activation_hygiene_score}%`
-            : '—'}
-        </div>
-        <div className="stat-card-description">
-          Avg Activation Hygiene across listings
         </div>
       </div>
       <div className="stat-card">
@@ -112,48 +85,6 @@ const HygieneOverview = ({
       </div>
       <div className="stat-card">
         <div className="stat-card-header">
-          <h3>Deal Hygiene Score</h3>
-        </div>
-        <div className="stat-card-value">
-          {hygieneScores?.deal_hygiene_score !== undefined
-            ? `${hygieneScores.deal_hygiene_score}%`
-            : '—'
-          }
-        </div>
-        <div className="stat-card-description">
-          Deal Tag = Yes validation rate
-        </div>
-      </div>
-      <div className="stat-card">
-        <div className="stat-card-header">
-          <h3>Rating Hygiene Score</h3>
-        </div>
-        <div className="stat-card-value">
-          {hygieneScores?.rating_hygiene_score !== undefined
-            ? `${hygieneScores.rating_hygiene_score}%`
-            : '—'
-          }
-        </div>
-        <div className="stat-card-description">
-          Average Rating Hygiene across listings
-        </div>
-      </div>
-      <div className="stat-card">
-        <div className="stat-card-header">
-          <h3>Catalog Hygiene Score</h3>
-        </div>
-        <div className="stat-card-value">
-          {hygieneScores?.catalog_hygiene_score !== undefined
-            ? `${hygieneScores.catalog_hygiene_score}%`
-            : '—'
-          }
-        </div>
-        <div className="stat-card-description">
-          Average Catalog Hygiene across listings
-        </div>
-      </div>
-      <div className="stat-card">
-        <div className="stat-card-header">
           <h3>EDD Hygiene Score</h3>
         </div>
         <div className="stat-card-value">
@@ -166,38 +97,24 @@ const HygieneOverview = ({
           Average EDD Hygiene across listings
         </div>
       </div>
-      <div className="stat-card">
-        <div className="stat-card-header">
-          <h3>Sold By Validation Hygiene Score</h3>
-        </div>
-        <div className="stat-card-value">
-          {hygieneScores?.sold_by_validation_score !== undefined
-            ? `${hygieneScores.sold_by_validation_score}%`
-            : '—'
-          }
-        </div>
-        <div className="stat-card-description">
-          Sold By Validation = Yes validation rate
-        </div>
-      </div>
     </div>
   );
 
   const renderToolbar = () => (
     <div className="date-filters">
       <div className="date-input-group">
-        <label htmlFor="hygiene-start-date">Start Date:</label>
+        <label htmlFor="hygiene-eqcom-start-date">Start Date:</label>
         <input
-          id="hygiene-start-date"
+          id="hygiene-eqcom-start-date"
           type="date"
           value={localFilters.startDate}
           onChange={(e) => onField('startDate', e.target.value)}
         />
       </div>
       <div className="date-input-group">
-        <label htmlFor="hygiene-end-date">End Date:</label>
+        <label htmlFor="hygiene-eqcom-end-date">End Date:</label>
         <input
-          id="hygiene-end-date"
+          id="hygiene-eqcom-end-date"
           type="date"
           max={new Date().toISOString().split('T')[0]}
           value={localFilters.endDate}
@@ -222,7 +139,7 @@ const HygieneOverview = ({
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">
-        <h2>Hygiene Overview</h2>
+        <h2>Hygiene EQCOM Overview</h2>
       </div>
       {renderToolbar()}
       {loading && <div className="loading">Loading Hygiene Data...</div>}
@@ -232,4 +149,5 @@ const HygieneOverview = ({
   );
 };
 
-export default React.memo(HygieneOverview);
+export default React.memo(HygieneEQCOMOverview);
+

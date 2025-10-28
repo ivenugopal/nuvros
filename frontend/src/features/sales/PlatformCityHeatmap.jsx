@@ -253,6 +253,7 @@ const PlatformCityHeatmap = () => {
             <input
               id="heatmap-end-date"
               type="date"
+              max={new Date().toISOString().split('T')[0]}
               value={filters.endDate}
               onChange={(e) => handleFilterChange('endDate', e.target.value)}
             />

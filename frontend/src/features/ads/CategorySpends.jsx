@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { formatNumber } from '../../utils/format';
+import { useUserBrands } from '../../contexts/UserBrandsContext';
 
 const maxRangeDays = 30;
 
@@ -12,10 +13,10 @@ const CategorySpends = ({
   onChangeFilters,
   onRefresh,
 }) => {
+  const { selectedBrand } = useUserBrands();
   const [localFilters, setLocalFilters] = useState(() => ({
     startDate: filters?.startDate || '',
     endDate: filters?.endDate || '',
-    brands: Array.isArray(filters?.brands) ? filters.brands : (filters?.brand ? [filters.brand] : []),
   }));
 
   useEffect(() => {
@@ -23,7 +24,6 @@ const CategorySpends = ({
       ...prev,
       startDate: filters?.startDate || '',
       endDate: filters?.endDate || '',
-      brands: Array.isArray(filters?.brands) ? filters.brands : (filters?.brand ? [filters.brand] : []),
     }));
   }, [filters]);
 
@@ -44,7 +44,6 @@ const CategorySpends = ({
     onChangeFilters && onChangeFilters({
       startDate: localFilters.startDate,
       endDate: localFilters.endDate,
-      brands: localFilters.brands,
     });
   };
 
@@ -69,22 +68,14 @@ const CategorySpends = ({
   const renderToolbar = () => (
     <div className="filters-toolbar">
       <div className="filters-row">
-        <label>
-          Start Date
-          <input type="date" value={localFilters.startDate} onChange={(e) => setField('startDate', e.target.value)} />
-        </label>
-        <label>
-          End Date
-          <input type="date" value={localFilters.endDate} onChange={(e) => setField('endDate', e.target.value)} />
-        </label>
-        <label>
-          Brand
-          <select value={(localFilters.brands && localFilters.brands[0]) || ''} onChange={(e) => setField('brands', e.target.value ? [e.target.value] : [])}>
-            {(options?.brands || []).map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
-        </label>
+        <div className="date-input-group">
+          <label htmlFor="category-start-date">Start Date:</label>
+          <input id="category-start-date" type="date" value={localFilters.startDate} onChange={(e) => setField('startDate', e.target.value)} />
+        </div>
+        <div className="date-input-group">
+          <label htmlFor="category-end-date">End Date:</label>
+          <input id="category-end-date" type="date" max={new Date().toISOString().split('T')[0]} value={localFilters.endDate} onChange={(e) => setField('endDate', e.target.value)} />
+        </div>
         <button onClick={apply} className="refresh-btn" disabled={disabled}>Apply</button>
       </div>
       {dateRangeTooLong && (

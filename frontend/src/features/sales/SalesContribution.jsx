@@ -6,6 +6,7 @@ import TextFilterDropdown from '../../components/common/TextFilterDropdown';
 import { formatNumber } from '../../utils/format';
 import { compareValues } from '../../utils/sort';
 import Pagination from '../../components/common/Pagination';
+import { useUserBrands } from '../../contexts/UserBrandsContext';
 
 const SalesContribution = ({
   data,
@@ -26,6 +27,7 @@ const SalesContribution = ({
   currentPage,
   setCurrentPage,
 }) => {
+  const { selectedBrand } = useUserBrands();
   const rows = Array.isArray(data) ? [...data] : [];
 
   const [columnFilters, setColumnFilters] = useState({
@@ -114,10 +116,6 @@ const SalesContribution = ({
           <div className="date-input-group">
             <label htmlFor="contrib-manufacturing-filter">Manufacturing Source:</label>
             <MultiSelectDropdown id="contrib-manufacturing-filter" options={options.manufacturing_cities || []} values={filters.manufacturing_city || []} onChange={(vals) => onChangeFilters({ manufacturing_city: vals })} />
-          </div>
-          <div className="date-input-group">
-            <label htmlFor="contrib-brand-filter">Brand:</label>
-            <MultiSelectDropdown id="contrib-brand-filter" options={options.brands || []} values={filters.brand || []} onChange={(vals) => onChangeFilters({ brand: vals })} />
           </div>
           <div className="date-input-group">
             <label htmlFor="contrib-category-filter">Category:</label>

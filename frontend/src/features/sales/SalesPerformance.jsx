@@ -6,7 +6,8 @@ import { compareValues } from '../../utils/sort';
 import { calculateWeeksBetweenMonths, generateWeekHeaders } from '../../utils/date';
 import NumericConditionDropdown from '../../components/common/NumericConditionDropdown';
 import TextFilterDropdown from '../../components/common/TextFilterDropdown';
-import { 
+import { useUserBrands } from '../../contexts/UserBrandsContext';
+import {
   BarChart, 
   Bar, 
   LineChart, 
@@ -446,23 +447,6 @@ const SalesPerformance = ({
                 onChangeFilters({ manufacturing_city: vals });
               }}
               triggerPlaceholder="All Manufacture Sources"
-            />
-          </div>
-          <div className="date-input-group">
-            <label htmlFor="performance-brand-filter">Brand:</label>
-            <MultiSelectDropdown
-              id="performance-brand-filter"
-              options={options.brands || []}
-              values={filters.brand || []}
-              onChange={(vals) => {
-                console.log('🏷️ USER ACTION: Brand changed', {
-                  component: 'SalesPerformance',
-                  oldValue: filters.brand,
-                  newValue: vals,
-                  willTriggerAPI: false
-                });
-                onChangeFilters({ brand: vals });
-              }}
             />
           </div>
           <div className="date-input-group">

@@ -93,7 +93,6 @@ const DRRReport = ({
   const [manufacturingSearch, setManufacturingSearch] = useState('');
   const [categorySearch, setCategorySearch] = useState('');
   const [subCategorySearch, setSubCategorySearch] = useState('');
-  const [brandSearch, setBrandSearch] = useState('');
 
   const filteredPlatforms = useMemo(() => (options.platforms || []).filter(p => !platformSearch || (p || '').toLowerCase().includes(platformSearch.toLowerCase())), [options.platforms, platformSearch]);
   const filteredCities = useMemo(() => (options.cities || []).filter(c => !citySearch || (c || '').toLowerCase().includes(citySearch.toLowerCase())), [options.cities, citySearch]);
@@ -101,7 +100,6 @@ const DRRReport = ({
   const filteredManufacturing = useMemo(() => (options.manufacturing_cities || []).filter(m => !manufacturingSearch || (m || '').toLowerCase().includes(manufacturingSearch.toLowerCase())), [options.manufacturing_cities, manufacturingSearch]);
   const filteredCategories = useMemo(() => (options.categories || []).filter(c => !categorySearch || (c || '').toLowerCase().includes(categorySearch.toLowerCase())), [options.categories, categorySearch]);
   const filteredSubCategories = useMemo(() => (options.sub_categories || []).filter(sc => !subCategorySearch || (sc || '').toLowerCase().includes(subCategorySearch.toLowerCase())), [options.sub_categories, subCategorySearch]);
-  const filteredBrands = useMemo(() => (options.brands || []).filter(b => !brandSearch || (b || '').toLowerCase().includes(brandSearch.toLowerCase())), [options.brands, brandSearch]);
 
   return (
     <div className="dashboard-container">
@@ -245,23 +243,6 @@ const DRRReport = ({
               }}
             />
           </div>
-          <div className="date-input-group">
-            <label htmlFor="drr-brand-filter">Brand:</label>
-            <MultiSelectDropdown
-              id="drr-brand-filter"
-              options={filteredBrands}
-              values={filters.brand || []}
-              onChange={(vals) => {
-                console.log('🏷️ USER ACTION: Brand changed', {
-                  component: 'DRRReport',
-                  oldValue: filters.brand,
-                  newValue: vals,
-                  willTriggerAPI: false
-                });
-                onChangeFilters({ brand: vals });
-              }}
-            />
-          </div>
           <button
             onClick={() => {
               console.log('🔘 USER ACTION: APPLY button clicked', {
@@ -275,8 +256,7 @@ const DRRReport = ({
                   supply_source: filters.supply_source,
                   manufacturing_city: filters.manufacturing_city,
                   category: filters.category,
-                  sub_category: filters.sub_category,
-                  brand: filters.brand
+                  sub_category: filters.sub_category
                 }
               });
               onRefresh();

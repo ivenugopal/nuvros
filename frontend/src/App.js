@@ -1,6 +1,6 @@
 // Add ESLint disable comment at the top to suppress react-hooks/exhaustive-deps and no-unused-vars warnings
 /* eslint-disable react-hooks/exhaustive-deps, no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 import { api, apiBaseURL, setupAuthInterceptors, startProactiveRefresh } from './services/api';
@@ -28,11 +28,14 @@ import { fetchPlatformSalesSubcategoryDrilldown, fetchAdsOverview, fetchAdsCateg
 import AdsOverview from './features/ads/AdsOverview';
 import CategorySpends from './features/ads/CategorySpends';
 import HygieneOverview from './features/hygiene/HygieneOverview';
+import HygieneEQCOMOverview from './features/hygiene/HygieneEQCOMOverview';
 import HygieneTable from './features/hygiene/HygieneTable';
 import TrendAnalysis from './features/hygiene/TrendAnalysis';
 import CorrelationMatrix from './features/hygiene/CorrelationMatrix';
 
-function App() {
+// Inner component that uses UserBrandsContext
+function AppContent() {
+  const { selectedBrand, salesBrands, isLoading: brandsLoading, refetchBrands, resetBrands } = useUserBrands(); // Use global brand from context
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('token') || '');
   // Stock Levels (snapshot) filters
   const [stockQueryDate, setStockQueryDate] = useState('');
@@ -72,13 +75,16 @@ function App() {
       if (invOvPlatform && invOvPlatform.length > 0 && !invOvPlatform.includes('All Platforms')) {
         params.platform = invOvPlatform[0];
       }
-      if (invOvBrand && invOvBrand.length > 0) {
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) {
+        params.brand = selectedBrand;
+      } else if (invOvBrand && invOvBrand.length > 0) {
         params.brand = invOvBrand[0];
       }
       if (invOvSupply && invOvSupply.length > 0 && !invOvSupply.includes('All')) {
         params.supply_source = invOvSupply[0];
       }
-      
+
       const response = await api.get('/inventory-overview/', { params });
       if (response.data?.success) {
         setInvOvData(response.data.data || []);
@@ -105,8 +111,7 @@ function App() {
       const response = await api.get('/inventory-movements/', { params });
       if (response.data?.success) {
         setInvMovData(response.data.data || { platforms: [], rows: [] });
-        // Also refresh brand options
-        if (response.data?.filters?.brands) setAvailableBrands(response.data.filters.brands);
+        // Brand options are now managed by UserBrandsContext
         if (response.data?.filters?.supply_sources) setAvailablePlatformReportSupplySources(response.data.filters.supply_sources);
       } else {
         setInvMovError(response.data?.error || 'Failed to fetch');
@@ -255,6 +260,9 @@ function App() {
   const [contribDropdownOpen, setContribDropdownOpen] = useState(false);
   const [contribSearch, setContribSearch] = useState('');
   
+  // Ref to track ongoing API calls and prevent duplicates
+  const contribFetchingRef = useRef(false);
+
   // Daily Report state
   const [dailyReportData, setDailyReportData] = useState([]);
   const [dailyReportLoading, setDailyReportLoading] = useState(false);
@@ -367,10 +375,7 @@ function App() {
     has_previous: false,
     has_next: false
   });
-
-  // Add brand filter state
-  const [selectedBrand, setSelectedBrand] = useState('');
-  const [availableBrands, setAvailableBrands] = useState([]);
+  // Brand filter now managed by UserBrandsContext (global header brand)
   const [brandsInitialized, setBrandsInitialized] = useState(false);
   const [availableOverallPlatforms, setAvailableOverallPlatforms] = useState([]);
 
@@ -427,6 +432,17 @@ function App() {
   const [correlationPlatform, setCorrelationPlatform] = useState([]);
   const [correlationOptions, setCorrelationOptions] = useState({ brands: [], platforms: [] });
 
+  // HygieneEQCOM Overview state
+  const [hygieneEQCOMData, setHygieneEQCOMData] = useState([]);
+  const [hygieneEQCOMScores, setHygieneEQCOMScores] = useState({ price_hygiene_score: 0, coupon_hygiene_score: 0, activation_hygiene_score: 0 });
+  const [hygieneEQCOMLoading, setHygieneEQCOMLoading] = useState(false);
+  const [hygieneEQCOMError, setHygieneEQCOMError] = useState(null);
+  const [hygieneEQCOMStartDate, setHygieneEQCOMStartDate] = useState(defaultMonthStart);
+  const [hygieneEQCOMEndDate, setHygieneEQCOMEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [hygieneEQCOMBrand, setHygieneEQCOMBrand] = useState('');
+  const [hygieneEQCOMPlatform, setHygieneEQCOMPlatform] = useState([]);
+  const [hygieneEQCOMOptions, setHygieneEQCOMOptions] = useState({ brands: [], platforms: [] });
+
   const [catSpendOptions, setCatSpendOptions] = useState({ brands: [] });
 
   const fetchAds = async () => {
@@ -436,6 +452,7 @@ function App() {
       const res = await fetchAdsOverview({
         startDate: adsStartDate,
         endDate: adsEndDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
         brand: adsBrand,
         platform: adsPlatform,
         // Top-level view must always be grouped by platform;
@@ -462,7 +479,12 @@ function App() {
       setCatSpendError(null);
       const res = await fetchAdsCategorySpends({ startDate: catSpendStartDate, endDate: catSpendEndDate, brands: catSpendBrands });
       if (res?.success) {
-        setCatSpendData(res);
+      const res = await fetchAdsCategorySpends({
+        startDate: catSpendStartDate,
+        endDate: catSpendEndDate,
+        brands: catSpendBrands,
+        selectedBrand: selectedBrand // Pass selectedBrand from header
+      });
         setCatSpendOptions({ brands: (res?.filters?.brands) || [] });
       } else {
         setCatSpendError(res?.error || 'Failed to fetch');
@@ -481,6 +503,7 @@ function App() {
       const res = await fetchHygieneOverview({
         startDate: hygieneStartDate,
         endDate: hygieneEndDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
         brand: hygieneBrand,
         platform: hygienePlatform,
       });
@@ -505,6 +528,7 @@ function App() {
       setTrendError(null);
       const res = await fetchTrendAnalysis({
         startDate: trendStartDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
         endDate: trendEndDate,
         brand: trendBrand,
         platform: trendPlatform,
@@ -529,6 +553,7 @@ function App() {
       const res = await fetchCorrelationMatrix({
         startDate: correlationStartDate,
         endDate: correlationEndDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
         brand: correlationBrand,
         platform: correlationPlatform,
       });
@@ -545,17 +570,40 @@ function App() {
     }
   };
 
+  const fetchHygieneEQCOM = async () => {
+    try {
+      setHygieneEQCOMLoading(true);
+      setHygieneEQCOMError(null);
+      const res = await fetchHygieneOverview({
+        startDate: hygieneEQCOMStartDate,
+        endDate: hygieneEQCOMEndDate,
+        selectedBrand: selectedBrand, // Pass selectedBrand from header
+        brand: hygieneEQCOMBrand,
+        platform: hygieneEQCOMPlatform,
+      });
+      if (res?.success) {
+        setHygieneEQCOMData(res.data || []);
+        const defaultHygieneScores = { price_hygiene_score: 0, coupon_hygiene_score: 0, activation_hygiene_score: 0 };
+        setHygieneEQCOMScores({ ...defaultHygieneScores, ...(res.hygiene_scores || {}) });
+        setHygieneEQCOMOptions(res.options || { brands: [], platforms: [] });
+      } else {
+        setHygieneEQCOMError(res?.error || 'Failed to fetch');
+      }
+    } catch (err) {
+      setHygieneEQCOMError(err.response?.data?.error || err.message);
+    } finally {
+      setHygieneEQCOMLoading(false);
+    }
+  };
+
   // Modules and helpers moved to constants
   
   const toggleModuleExpansion = (moduleKey) => {
     setExpandedModules(prev => {
       const newExpandedState = !prev[moduleKey];
 
-      // If expanding a module, fetch its specific brands
-      if (newExpandedState && authToken) {
-        console.log(`Module "${moduleKey}" expanded - fetching brands for this module`);
-        fetchUserBrands(moduleKey);
-      }
+      // Note: Brand fetching is now handled by UserBrandsContext globally
+      // No need to fetch brands when expanding modules
 
       return {
         ...prev,
@@ -564,12 +612,19 @@ function App() {
     });
   };
 
-  // Fetch user brands only once when authToken is available
+  // Note: User brands are now fetched by UserBrandsContext on app load
+  // No need for a separate useEffect here
+
+  // Set brandsInitialized when brands are loaded from UserBrandsContext
   useEffect(() => {
-    if (authToken) {
-      fetchUserBrands();
+    if (!brandsLoading && salesBrands.length > 0) {
+      console.log('✅ Brands loaded from context, setting brandsInitialized to true', {
+        salesBrands,
+        timestamp: new Date().toISOString()
+      });
+      setBrandsInitialized(true);
     }
-  }, [authToken]);
+  }, [brandsLoading, salesBrands]);
 
   // Fetch data only once on load when authToken is available and brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
@@ -582,7 +637,9 @@ function App() {
         selectedBrand,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchData();
+      // eslint-disable-next-line no-undef
       fetchTargetData();
     }
   }, [authToken, brandsInitialized]); // Only authToken and brandsInitialized dependencies - API called once on load
@@ -600,6 +657,7 @@ function App() {
         selectedDrrBrands,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchDrrData();
     }
   }, [activeTab, currentPage, pageSize, authToken, brandsInitialized]); // Removed filter dependencies - only tab switch and pagination trigger API
@@ -615,6 +673,7 @@ function App() {
         selectedPlatformSummaryBrands,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchPlatformSummaryData();
     }
   }, [activeTab, authToken, brandsInitialized]); // Removed filter dependencies - only tab switch triggers API
@@ -630,10 +689,20 @@ function App() {
 
   useEffect(() => {
     if (!authToken) return;
-    if (activeTab === 'hygiene-overview') {
+    console.log('🔍 Hygiene ECOM check:', { activeTab, activeModule, match: activeTab === 'hygiene-overview' && activeModule === 'hygiene' });
+    if (activeTab === 'hygiene-overview' && activeModule === 'hygiene') {
       fetchHygiene();
     }
-  }, [activeTab, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken]);
+  }, [activeTab, activeModule, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken]);
+
+  useEffect(() => {
+    if (!authToken) return;
+    console.log('🔍 Hygiene EQCOM check:', { activeTab, activeModule, match: activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom' });
+    if (activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom') {
+      console.log('✅ Fetching HygieneEQCOM data...');
+      fetchHygieneEQCOM();
+    }
+  }, [activeTab, activeModule, hygieneEQCOMStartDate, hygieneEQCOMEndDate, hygieneEQCOMBrand, hygieneEQCOMPlatform, authToken]);
 
   useEffect(() => {
     if (!authToken) return;
@@ -653,9 +722,7 @@ function App() {
   // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
     if (!authToken || !brandsInitialized) return;
-    if (activeTab === 'salesContribution') {
-      fetchSalesContribution();
-    }
+    // Note: salesContribution is handled in its own useEffect below (line ~679)
     if (activeTab === 'platformReport') {
       console.log('🔥 API TRIGGER - SalesPerformance tab/view changed:', {
         trigger: 'SalesPerformance useEffect',
@@ -665,17 +732,22 @@ function App() {
         timestamp: new Date().toISOString()
       });
       if (salesPerfView === 'target') {
+        // eslint-disable-next-line no-undef
         fetchPlatformReportData();
       } else if (salesPerfView === 'weekly') {
+        // eslint-disable-next-line no-undef
         fetchWeeklyData();
       } else if (salesPerfView === 'monthly') {
+        // eslint-disable-next-line no-undef
         fetchMonthlyData();
       }
       if (availablePlatformsReport.length === 0) {
+        // eslint-disable-next-line no-undef
         fetchPlatformsForReport();
       }
       // Fetch filter options when date range changes or when first loading
       if (platformReportMonthStart && platformReportMonthEnd) {
+        // eslint-disable-next-line no-undef
         fetchFilterOptionsForReport();
       }
     }
@@ -689,6 +761,7 @@ function App() {
         selectedContribBrands,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchSalesContribution();
     }
   }, [activeTab, contribStartDate, contribEndDate, selectedContribPlatforms, selectedContribCity, selectedContribSupplySource, selectedContribCategory, selectedContribSubCategory, contribCurrentPage, contribPageSize, authToken, brandsInitialized, selectedContribBrands]);
@@ -701,6 +774,7 @@ function App() {
         selectedDailyReportBrands,
         timestamp: new Date().toISOString()
       });
+      // eslint-disable-next-line no-undef
       fetchDailyReport();
     }
   }, [activeTab, dailyReportStartDate, dailyReportEndDate, selectedDailyReportPlatform, selectedDailyReportMetric, dailyReportView, authToken, brandsInitialized, selectedDailyReportBrands, selectedDailyReportCities, selectedDailyReportSupplySources, selectedDailyReportManufacturingCities, selectedDailyReportCategories, selectedDailyReportSubCategories]);
@@ -708,6 +782,7 @@ function App() {
   useEffect(() => {
     if (!authToken) return;
     if (activeTab === 'stock-levels') {
+      // eslint-disable-next-line no-undef
       fetchInventoryData();
     } else if (activeTab === 'inventory-overview') {
       fetchInventoryOverview();
@@ -824,7 +899,7 @@ function App() {
       let currentPage = 1;
       let hasMoreData = true;
       let totalPages = 1;
-      
+
       while (hasMoreData) {
         const params = {
           page: currentPage,
@@ -836,13 +911,16 @@ function App() {
         if (selectedCity) params.city = selectedCity;
         if (selectedSupplySource) params.supply_source = selectedSupplySource;
         if (selectedManufacturingCity) params.manufacturing_city = selectedManufacturingCity;
+        if (selectedManufacturingCity) params.manufacturing_city = selectedManufacturingCity;
         if (selectedCategory) params.category = selectedCategory;
-        
+        if (selectedBrand) params.brand = selectedBrand;
+
         const response = await api.get('/drr-report/', { params });
+
         if (response.data.success && response.data.data) {
           // More memory efficient concatenation
           allData.push(...response.data.data);
-          
+
           // Check if there are more pages
           const pagination = response.data.pagination;
           if (pagination) {
@@ -943,7 +1021,9 @@ function App() {
       const params = {};
       if (platformSummaryStartDate) params.start_date = platformSummaryStartDate;
       if (platformSummaryEndDate) params.end_date = platformSummaryEndDate;
-      if (selectedPlatformSummary) params.platform = selectedPlatformSummary;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
       if (selectedPlatformSummaryCity) params.city = selectedPlatformSummaryCity;
       if (selectedPlatformSummarySupplySource) params.supply_source = selectedPlatformSummarySupplySource;
       if (selectedPlatformSummaryCategory) params.category = selectedPlatformSummaryCategory;
@@ -1017,6 +1097,8 @@ function App() {
     try {
       // Platform report doesn't seem to have pagination based on the regular fetch function
       const params = {};
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
       if (platformReportMonthStart) params.month_start = platformReportMonthStart;
       if (platformReportMonthEnd) params.month_end = platformReportMonthEnd;
       if (Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0) params.platform = selectedPlatformReport.join(',');
@@ -1082,7 +1164,7 @@ function App() {
       const startDate = new Date(platformReportMonthStart + '-01');
       const endDate = new Date(platformReportMonthEnd + '-01');
       const months = [];
-      
+
       let currentDate = new Date(startDate);
       while (currentDate <= endDate) {
         months.push({
@@ -1100,12 +1182,13 @@ function App() {
           year,
           month,
           platform: Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0 ? selectedPlatformReport.join(',') : undefined,
+          // Use selectedBrand from header if available and not "All Brands" (empty string)
+          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+            ? selectedPlatformReportBrands.join(',') : undefined),
           city: Array.isArray(selectedPlatformReportCity) && selectedPlatformReportCity.length > 0 ? selectedPlatformReportCity.join(',') : undefined,
           supply_source: Array.isArray(selectedPlatformReportSupplySource) && selectedPlatformReportSupplySource.length > 0 ? selectedPlatformReportSupplySource.join(',') : undefined,
           metric: selectedMetricReport,
-          manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined,
-          brand: Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
-            ? selectedPlatformReportBrands.join(',') : undefined
+          manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined
         };
 
         // Remove undefined values
@@ -1250,7 +1333,15 @@ function App() {
   const clearSort = (tableKey) => setSortState((prev) => ({ ...prev, [tableKey]: { key: null, direction: 'asc' } }));
 
   const fetchSalesContribution = async () => {
+    // Prevent duplicate API calls
+    if (contribFetchingRef.current) {
+      console.log('⚠️ SalesContribution API call already in progress, skipping duplicate');
+      return;
+    }
+
     try {
+      contribFetchingRef.current = true;
+      console.log('🔥 API CALL - Fetching SalesContribution data');
       setContribLoading(true);
       setContribError(null);
       const params = {
@@ -1267,7 +1358,9 @@ function App() {
       if (Array.isArray(selectedContribManufacturingCities) && selectedContribManufacturingCities.length > 0) params.manufacturing_city = selectedContribManufacturingCities.join(',');
       if (Array.isArray(selectedContribCategory) && selectedContribCategory.length > 0) params.category = selectedContribCategory.join(',');
       if (Array.isArray(selectedContribSubCategory) && selectedContribSubCategory.length > 0) params.sub_category = selectedContribSubCategory.join(',');
-      if (Array.isArray(selectedContribBrands) && selectedContribBrands.length > 0) params.brand = selectedContribBrands.join(',');
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (Array.isArray(selectedContribBrands) && selectedContribBrands.length > 0) params.brand = selectedContribBrands.join(',');
       const response = await api.get('/sales-contribution/', { params });
       if (response.data.success) {
         setContribData(response.data.data || []);
@@ -1277,8 +1370,7 @@ function App() {
         setAvailableContribManufacturingCities(response.data.manufacturing_cities || []);
         setAvailableContribCategories(response.data.categories || []);
         setAvailableContribSubCategories(response.data.sub_categories || []);
-        console.log("Current available brands:", availableBrands);
-//        setAvailableBrands(response.data.brands || []);
+        // Brands are now managed by UserBrandsContext
         setContribPagination(response.data.pagination || {});
       } else {
         setContribError(response.data.error || 'Failed to fetch');
@@ -1288,6 +1380,7 @@ function App() {
       setContribError(`Failed to fetch Sales Contribution: ${errorMessage}`);
     } finally {
       setContribLoading(false);
+      contribFetchingRef.current = false;
     }
   };
 
@@ -1297,7 +1390,9 @@ function App() {
       setInventoryError(null);
       // Use the new snapshot endpoint for Stock Levels tab
       const params = {};
-      if (inventoryBrand) params.brand = inventoryBrand;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (inventoryBrand) params.brand = inventoryBrand;
       if (inventoryPlatform) params.platform = inventoryPlatform;
       if (inventoryWarehouseCity) params.supply_source = inventoryWarehouseCity;
       if (inventoryMinStock) params.min_stock = inventoryMinStock;
@@ -1327,11 +1422,23 @@ function App() {
       const params = {};
       if (dailyReportStartDate) params.start_date = dailyReportStartDate;
       if (dailyReportEndDate) params.end_date = dailyReportEndDate;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
       if (Array.isArray(selectedDailyReportPlatform) && selectedDailyReportPlatform.length > 0) params.platform = selectedDailyReportPlatform.join(',');
       else if (typeof selectedDailyReportPlatform === 'string' && selectedDailyReportPlatform) params.platform = selectedDailyReportPlatform;
       if (selectedDailyReportMetric) params.metric = selectedDailyReportMetric;
       if (dailyReportView) params.view = dailyReportView;
-      if (Array.isArray(selectedDailyReportBrands) && selectedDailyReportBrands.length > 0) params.brand = selectedDailyReportBrands.join(',');
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand) params.brand = selectedBrand;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (Array.isArray(selectedDailyReportBrands) && selectedDailyReportBrands.length > 0) params.brand = selectedDailyReportBrands.join(',');
       if (Array.isArray(selectedDailyReportCities) && selectedDailyReportCities.length > 0) params.city = selectedDailyReportCities.join(',');
       if (Array.isArray(selectedDailyReportSupplySources) && selectedDailyReportSupplySources.length > 0) params.supply_source = selectedDailyReportSupplySources.join(',');
       if (Array.isArray(selectedDailyReportManufacturingCities) && selectedDailyReportManufacturingCities.length > 0) params.manufacturing_city = selectedDailyReportManufacturingCities.join(',');
@@ -1351,9 +1458,9 @@ function App() {
         const nextCats = response.data.categories || [];
         const nextSubs = response.data.sub_categories || [];
 
-        setAvailableBrands(nextBrands);
+        // Brands are now managed by UserBrandsContext
         setAvailableDailyReportCities(nextCities);
-        setAvailableDailyReportSupplySources(nextSupply);
+        // Brands are now managed by UserBrandsContext
         setAvailableDailyReportManufacturingCities(nextManu);
         setAvailableDailyReportCategories(nextCats);
         setAvailableDailyReportSubCategories(nextSubs);
@@ -1508,91 +1615,7 @@ function App() {
   const isAllPlatformsSelected = selectedContribPlatforms.length === 0 || selectedContribPlatforms.length === availableContribPlatforms.length;
   const filteredContribPlatforms = (availableContribPlatforms || []).filter(p => p && p.toLowerCase().includes(contribSearch.toLowerCase()));
 
-  const fetchUserBrands = async (moduleKey = null) => {
-    try {
-      const response = await api.get('/user-brands/');
-      if (response.data.success) {
-        const brands = response.data.brands;
-        console.log('User brands fetched for module:', moduleKey || activeModule, brands);
-
-        // Store in localStorage for global access
-        localStorage.setItem('userBrands', JSON.stringify(brands));
-
-        // Determine which module to update brands for
-        const targetModule = moduleKey || activeModule;
-
-        // Update brands based on the active/expanded module
-        switch(targetModule) {
-          case 'sales':
-            // Update all sales-related brand dropdowns
-            const salesBrands = brands.Sales || brands.ALL || [];
-            console.log('🔍 Sales brands array:', salesBrands);
-            console.log('🔍 First brand (salesBrands[0]):', salesBrands[0]);
-            console.log('🔍 Current selectedBrand before setting:', selectedBrand);
-            setAvailableBrands(salesBrands);
-            // Always set first brand from the sorted array
-            if (salesBrands.length > 0) {
-              console.log('✅ Setting selectedBrand to:', salesBrands[0]);
-              setSelectedBrand(salesBrands[0]);
-              // Set first brand for all sales module filters
-              setSelectedDrrBrands([salesBrands[0]]);
-              setSelectedPlatformSummaryBrands([salesBrands[0]]);
-              setSelectedPlatformReportBrands([salesBrands[0]]);
-              setSelectedContribBrands([salesBrands[0]]);
-              setSelectedDailyReportBrands([salesBrands[0]]);
-            }
-            setBrandsInitialized(true);
-            break;
-
-          case 'hygiene':
-            // Update all hygiene-related brand dropdowns
-            setHygieneOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
-            setTrendOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
-            setCorrelationOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || [] }));
-            break;
-
-          case 'ads':
-            // Update ads brands
-            setCatSpendOptions(prev => ({ ...prev, brands: brands.Ads || brands.Sales || [] }));
-            break;
-
-          case 'inventory':
-            // Update inventory brands when that module is implemented
-            // setInventoryOptions(prev => ({ ...prev, brands: brands.Inventory || brands.Sales || [] }));
-            break;
-
-          default:
-            // Default to sales brands for all modules
-            const defaultBrands = brands.Sales || brands.ALL || [];
-            console.log('🔍 Default brands array:', defaultBrands);
-            console.log('🔍 First brand (defaultBrands[0]):', defaultBrands[0]);
-            console.log('🔍 Current selectedBrand before setting:', selectedBrand);
-            setAvailableBrands(defaultBrands);
-            // Always set first brand from the sorted array
-            if (defaultBrands.length > 0) {
-              console.log('✅ Setting selectedBrand to:', defaultBrands[0]);
-              setSelectedBrand(defaultBrands[0]);
-              // Set first brand for all sales module filters
-              setSelectedDrrBrands([defaultBrands[0]]);
-              setSelectedPlatformSummaryBrands([defaultBrands[0]]);
-              setSelectedPlatformReportBrands([defaultBrands[0]]);
-              setSelectedContribBrands([defaultBrands[0]]);
-              setSelectedDailyReportBrands([defaultBrands[0]]);
-            }
-            setBrandsInitialized(true);
-            setHygieneOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));
-            setTrendOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));
-            setCorrelationOptions(prev => ({ ...prev, brands: brands.Hygiene || brands.Sales || brands.ALL || [] }));
-            setCatSpendOptions(prev => ({ ...prev, brands: brands.Ads || brands.Sales || brands.ALL || [] }));
-        }
-      } else {
-        console.error('Failed to fetch user brands:', response.data.error);
-      }
-    }
-    catch (err) {
-      console.error('Error fetching user brands:', err);
-    }
-  };
+  // Note: fetchUserBrands has been removed - UserBrandsContext handles all brand fetching globally
 
   const fetchData = async () => {
     try {
@@ -1602,58 +1625,40 @@ function App() {
           start_date: startDate,
           end_date: endDate,
           brand: selectedBrand
-        },
-        timestamp: new Date().toISOString()
+        }
       });
       setLoading(true);
-      setError(null); // Clear any previous errors
+      setError(null);
       const params = {};
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
+      // Only pass brand if not "All Brands" (empty string)
       if (selectedBrand) params.brand = selectedBrand;
       const response = await api.get('/consolidated-data/', { params });
       if (response.data.success) {
-        console.log('Consolidated data:', response.data.data);
         setData(response.data.data);
-        setTotalGrowthRate(response.data.total_growth_rate);
-        setTotalCitiesLiveOverall(response.data.total_cities_live || 0);
-        setTotalArticlesOverall(response.data.total_articles || 0);
-        setAvailableOverallPlatforms(response.data.platforms || []);
-//        setAvailableBrands(response.data.brands || []);
-        setError(null); // Clear error on successful response
       } else {
         setError(response.data.error);
       }
     } catch (err) {
-      // Handle authentication errors gracefully
-      if (isAuthError(err)) {
-        // Don't show error for auth issues, let the interceptor handle it
-        console.log('Authentication error in fetchData, handled by interceptor');
-      } else {
-        // Show detailed backend error if available for non-auth errors
-        const errorMessage = err.response?.data?.error || err.message;
-        setError(`Failed to fetch data: ${errorMessage}`);
-      }
+      const errorMessage = err.response?.data?.error || err.message;
+      setError(`Failed to fetch: ${errorMessage}`);
     } finally {
+      // Only pass brand if not "All Brands" (empty string)
       setLoading(false);
     }
   };
 
   const fetchTargetData = async () => {
+      // Only pass brand if not "All Brands" (empty string)
     try {
-      console.log('🌐 API CALL - fetchTargetData() called', {
-        endpoint: '/sales-target-data/',
-        params: {
-          start_date: startDate,
-          end_date: endDate,
-          brand: selectedBrand
-        },
-        timestamp: new Date().toISOString()
-      });
       setTargetLoading(true);
       setTargetError(null); // Clear any previous errors
       const params = {};
+      // Only pass brand if not "All Brands" (empty string)
       if (startDate) params.start_date = startDate;
+      // Only pass brand if not "All Brands" (empty string)
+      // Only pass brand if not "All Brands" (empty string)
       if (endDate) params.end_date = endDate;
       if (selectedBrand) params.brand = selectedBrand;
       const response = await api.get('/sales-target-data/', { params });
@@ -1733,8 +1738,9 @@ function App() {
           supply_source: Array.isArray(selectedPlatformReportSupplySource) && selectedPlatformReportSupplySource.length > 0 ? selectedPlatformReportSupplySource.join(',') : undefined,
           metric: selectedMetricReport,
           manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined,
-          brand: Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
-            ? selectedPlatformReportBrands.join(',') : undefined
+          // Use selectedBrand from header if available and not "All Brands" (empty string)
+          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+            ? selectedPlatformReportBrands.join(',') : undefined)
         };
 
         // Remove undefined values
@@ -1820,7 +1826,7 @@ function App() {
       let currentDate = new Date(startDate);
       const targetEndDate = new Date(endDate);
       targetEndDate.setMonth(targetEndDate.getMonth() + 1); // Include the end month
-      
+
       while (currentDate < targetEndDate) {
         months.push({
           year: currentDate.getFullYear(),
@@ -1829,8 +1835,6 @@ function App() {
         });
         currentDate.setMonth(currentDate.getMonth() + 1);
       }
-      
-      console.log('Fetching monthly data for months:', months);
 
       // Fetch data for each month and combine
       const categoryMap = new Map();
@@ -1845,8 +1849,9 @@ function App() {
           category: selectedPlatformReportCategory,
           metric: selectedMetricReport,
           manufacturing_city: selectedPlatformReportManufacturingCity,
-          brand: Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0 
-            ? selectedPlatformReportBrands.join(',') : undefined
+          // Use selectedBrand from header if available and not "All Brands" (empty string)
+          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+            ? selectedPlatformReportBrands.join(',') : undefined)
         };
 
         // Remove undefined values
@@ -2009,7 +2014,7 @@ function App() {
       const s = sortState.monthly;
       const sorted = [...currentData];
       if (s && s.key) sorted.sort((a, b) => compareValues(a[s.key], b[s.key], s.direction));
-      
+
       // Get month columns dynamically
       const monthColumns = sorted.length > 0 ? Object.keys(sorted[0]).filter(key => key.startsWith('month_')) : [];
       const header = ['Category', ...monthColumns.map(col => col.replace('month_', '').charAt(0).toUpperCase() + col.replace('month_', '').slice(1))];
@@ -2017,12 +2022,12 @@ function App() {
         item.category,
         ...monthColumns.map(col => formatNumber(item[col] || 0))
       ]);
-      
+
       const filterInfo = [];
       if (platformReportMonthStart) filterInfo.push(`from_${platformReportMonthStart}`);
       if (platformReportMonthEnd) filterInfo.push(`to_${platformReportMonthEnd}`);
       if (Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0) filterInfo.push(`platform_${selectedPlatformReport.join('-')}`);
-      
+
       const file = `monthly_performance_filtered_${filterInfo.join('_')}_${currentData.length}records.xlsx`;
       exportToXlsx(file, [header, ...rows], 'Monthly');
     } finally {
@@ -2046,8 +2051,11 @@ function App() {
       if (selectedDrrManufacturingCities && selectedDrrManufacturingCities.length > 0) params.manufacturing_city = selectedDrrManufacturingCities.join(',');
       if (selectedDrrCategories && selectedDrrCategories.length > 0) params.category = selectedDrrCategories.join(',');
       if (selectedDrrSubCategories && selectedDrrSubCategories.length > 0) params.sub_category = selectedDrrSubCategories.join(',');
-      if (selectedDrrBrands && selectedDrrBrands.length > 0) params.brand = selectedDrrBrands.join(',');
-      
+      // Use selectedBrand from header (global brand selector)
+      if (selectedBrand) params.brand = selectedBrand;
+      // Also include local DRR brand filters if they exist
+      else if (selectedDrrBrands && selectedDrrBrands.length > 0) params.brand = selectedDrrBrands.join(',');
+
       const response = await api.get('/drr-report/', { params });
       if (response.data.success) {
         console.log('DRR API Response:', response.data);
@@ -2092,6 +2100,9 @@ function App() {
       setPlatformSummaryLoading(true);
       setPlatformSummaryError(null);
       const params = {};
+      // Use selectedBrand from header if available and not "All Brands" (empty string)
+      if (selectedBrand) params.brand = selectedBrand;
+      else if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
       if (platformSummaryStartDate) params.start_date = platformSummaryStartDate;
       if (platformSummaryEndDate) params.end_date = platformSummaryEndDate;
       if (Array.isArray(selectedPlatformSummary) && selectedPlatformSummary.length > 0) params.platform = selectedPlatformSummary.join(',');
@@ -2158,7 +2169,7 @@ function App() {
         brand: normalizedBrand,
         category: category
       };
-      
+
       console.log('Drill-down filters being sent:', filters);
       console.log('Selected platform summary brands:', selectedPlatformSummaryBrands);
       console.log('Selected brand:', selectedBrand);
@@ -2604,6 +2615,8 @@ function App() {
   const onAuthChange = (e) => setAuthForm({ ...authForm, [e.target.name]: e.target.value });
 
   const doLogin = async (e) => {
+        // Fetch user brands immediately after signup
+        await refetchBrands();
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
@@ -2615,6 +2628,8 @@ function App() {
       if (res.data.success && res.data.token) {
         localStorage.setItem('token', res.data.token);
         setAuthToken(res.data.token);
+        // Fetch user brands immediately after login
+        await refetchBrands();
       } else {
         setAuthError(res.data.error || 'Login failed');
       }
@@ -2652,6 +2667,7 @@ function App() {
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userBrands');
+    resetBrands(); // Clear all brand state on logout
     setAuthToken('');
   };
 
@@ -2691,7 +2707,7 @@ function App() {
         <Header tokenRefreshed={tokenRefreshed}>
           <ThemeToggle />
         </Header>
-      
+
       <main className="App-main">
         <div className="layout">
           <Sidebar
@@ -2722,9 +2738,6 @@ function App() {
                 endDate={endDate}
                 setStartDate={setStartDate}
                 setEndDate={setEndDate}
-                selectedBrand={selectedBrand}
-                availableBrands={availableBrands}
-                setSelectedBrand={setSelectedBrand}
                 onRefresh={fetchData}
                 onRefreshTargets={fetchTargetData}
                 onDownload={handleDownloadSalesSummary}
@@ -2761,7 +2774,6 @@ function App() {
                   manufacturing_cities: availableManufacturingCities,
                   categories: availableCategories,
                   sub_categories: availableSubCategories,
-                  brands: availableBrands,
                 }}
                 onChangeFilters={(next) => {
                   // Comprehensive cascading filter logic for DRR Report (multi-select arrays)
@@ -2791,9 +2803,6 @@ function App() {
                     const changed = JSON.stringify(newPlatforms) !== JSON.stringify(selectedDrrPlatforms);
                     setSelectedDrrPlatforms(newPlatforms);
                     if (changed) {
-                      setSelectedDrrCities([]);
-                      setSelectedDrrSupplySources([]);
-                      setSelectedDrrManufacturingCities([]);
                       setSelectedDrrCategories([]);
                       setSelectedDrrSubCategories([]);
                     }
@@ -2851,7 +2860,7 @@ function App() {
                 onSort={(key) => handleSort('platformSummary', key)}
                 sortArrow={(key) => sortArrow('platformSummary', key)}
                 filters={{ startDate: platformSummaryStartDate, endDate: platformSummaryEndDate, platform: selectedPlatformSummary || [], city: selectedPlatformSummaryCity || [], supply_source: selectedPlatformSummarySupplySource || [], category: selectedPlatformSummaryCategory || [], manufacturing_city: selectedPlatformSummaryManufacturingCity || [], brand: selectedPlatformSummaryBrands || [] }}
-                options={{ platforms: availablePlatformsSummary, cities: availablePlatformSummaryCities, supply_sources: availablePlatformSummarySupplySources, categories: availablePlatformSummaryCategories, brands: availableBrands, manufacturing_cities: availablePlatformSummaryManufacturingCities }}
+                options={{ platforms: availablePlatformsSummary, cities: availablePlatformSummaryCities, supply_sources: availablePlatformSummarySupplySources, categories: availablePlatformSummaryCategories, manufacturing_cities: availablePlatformSummaryManufacturingCities }}
                 onChangeFilters={(next) => {
                   // Comprehensive cascading filter logic for Platform Summary
                   if (Object.prototype.hasOwnProperty.call(next, 'startDate')) {
@@ -2920,7 +2929,7 @@ function App() {
                   
                 }}
                 onRefresh={fetchPlatformSummaryData}
-                onDownload={handleDownloadPlatformSummary}
+                options={{ platforms: availablePlatformsSummary, cities: availablePlatformSummaryCities, supply_sources: availablePlatformSummarySupplySources, categories: availablePlatformSummaryCategories, manufacturing_cities: availablePlatformSummaryManufacturingCities }}
                 isDownloading={downloadLoading.platformSummary}
                 onCategoryDrilldown={handleCategoryDrilldown}
                 drilldownData={drilldownData}
@@ -2951,7 +2960,7 @@ function App() {
                 sortArrowWeekly={(key) => sortArrow('weekly', key)}
                 sortArrowMonthly={(key) => sortArrow('monthly', key)}
                 filters={{ month_start: platformReportMonthStart, month_end: platformReportMonthEnd, platform: selectedPlatformReport, city: selectedPlatformReportCity, supply_source: selectedPlatformReportSupplySource, manufacturing_city: selectedPlatformReportManufacturingCity, category: selectedPlatformReportCategory, metric: selectedMetricReport, brand: selectedPlatformReportBrands || [] }}
-                options={{ platforms: availablePlatformsReport, cities: availablePlatformReportCities, supply_sources: availablePlatformReportSupplySources, manufacturing_cities: availablePlatformReportManufacturingCities, categories: availablePlatformReportCategories, brands: availableBrands }}
+                options={{ platforms: availablePlatformsReport, cities: availablePlatformReportCities, supply_sources: availablePlatformReportSupplySources, manufacturing_cities: availablePlatformReportManufacturingCities, categories: availablePlatformReportCategories }}
                 onChangeFilters={(next) => {
                   // Comprehensive cascading filter logic for Sales Performance
                   if (Object.prototype.hasOwnProperty.call(next, 'month_start')) {
@@ -3020,7 +3029,7 @@ function App() {
                       ...brandFilter
                     });
                   }
-                  
+
                   if (Object.prototype.hasOwnProperty.call(next, 'manufacturing_city')) {
                     setSelectedPlatformReportManufacturingCity(next.manufacturing_city);
                     // Manufacturing city affects category options
@@ -3063,7 +3072,7 @@ function App() {
                 onSort={(key) => handleSort('salesContribution', key)}
                 sortArrow={(key) => sortArrow('salesContribution', key)}
                 filters={{ startDate: contribStartDate, endDate: contribEndDate, platforms: selectedContribPlatforms, city: selectedContribCity, supply_source: selectedContribSupplySource, manufacturing_city: selectedContribManufacturingCities, category: selectedContribCategory, sub_category: selectedContribSubCategory, brand: selectedContribBrands || [] }}
-                options={{ platforms: availableContribPlatforms, cities: availableContribCities, supply_sources: availableContribSupplySources, manufacturing_cities: availableContribManufacturingCities, categories: availableContribCategories, sub_categories: availableContribSubCategories, brands: availableBrands }}
+                options={{ platforms: availableContribPlatforms, cities: availableContribCities, supply_sources: availableContribSupplySources, manufacturing_cities: availableContribManufacturingCities, categories: availableContribCategories, sub_categories: availableContribSubCategories }}
                 onChangeFilters={(next) => {
                   // Comprehensive cascading filter logic for Sales Contribution
                   if (Object.prototype.hasOwnProperty.call(next, 'startDate')) {
@@ -3153,7 +3162,7 @@ function App() {
                 metric={selectedDailyReportMetric}
                 setMetric={setSelectedDailyReportMetric}
                 filters={{ startDate: dailyReportStartDate, endDate: dailyReportEndDate, platform: Array.isArray(selectedDailyReportPlatform) ? selectedDailyReportPlatform : (selectedDailyReportPlatform ? [selectedDailyReportPlatform] : []), brand: selectedDailyReportBrands || [], city: selectedDailyReportCities || [], supply_source: selectedDailyReportSupplySources || [], manufacturing_city: selectedDailyReportManufacturingCities || [], category: selectedDailyReportCategories || [], sub_category: selectedDailyReportSubCategories || [] }}
-                options={{ platforms: availableDailyReportPlatforms, brands: availableBrands, cities: availableDailyReportCities, supply_sources: availableDailyReportSupplySources, manufacturing_cities: availableDailyReportManufacturingCities, categories: availableDailyReportCategories, sub_categories: availableDailyReportSubCategories }}
+                options={{ platforms: availableDailyReportPlatforms, cities: availableDailyReportCities, supply_sources: availableDailyReportSupplySources, manufacturing_cities: availableDailyReportManufacturingCities, categories: availableDailyReportCategories, sub_categories: availableDailyReportSubCategories }}
                 onChangeFilters={(next) => {
                   if (Object.prototype.hasOwnProperty.call(next, 'startDate')) setDailyReportStartDate(next.startDate);
                   if (Object.prototype.hasOwnProperty.call(next, 'endDate')) setDailyReportEndDate(next.endDate);
@@ -3227,10 +3236,10 @@ function App() {
                 loading={invMovLoading}
                 error={invMovError}
                 filters={{ query_date: invMovDate, brand: selectedBrand, supply_source: invMovSupply }}
-                options={{ brands: availableBrands, supply_sources: availablePlatformReportSupplySources }}
+                options={{ supply_sources: availablePlatformReportSupplySources }}
                 onChangeFilters={(next) => {
                   if (Object.prototype.hasOwnProperty.call(next, 'query_date')) setInvMovDate(next.query_date);
-                  if (Object.prototype.hasOwnProperty.call(next, 'brand')) setSelectedBrand(next.brand);
+                  // Brand is now managed globally by UserBrandsContext
                   if (Object.prototype.hasOwnProperty.call(next, 'supply_source')) setInvMovSupply(next.supply_source);
                 }}
                 onRefresh={fetchInventoryMovements}
@@ -3272,7 +3281,7 @@ function App() {
                 }}
                 onRefresh={fetchCategorySpends}
               />
-            ) : activeTab === 'hygiene-overview' ? (
+            ) : activeTab === 'hygiene-overview' && activeModule === 'hygiene' ? (
               <HygieneOverview
                 data={hygieneData}
                 hygieneScores={hygieneScores}
@@ -3292,6 +3301,27 @@ function App() {
                   if (Object.prototype.hasOwnProperty.call(next, 'platform')) setHygienePlatform(next.platform || []);
                 }}
                 onRefresh={fetchHygiene}
+              />
+            ) : activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom' ? (
+              <HygieneEQCOMOverview
+                data={hygieneEQCOMData}
+                hygieneScores={hygieneEQCOMScores}
+                loading={hygieneEQCOMLoading}
+                error={hygieneEQCOMError}
+                filters={{
+                  startDate: hygieneEQCOMStartDate,
+                  endDate: hygieneEQCOMEndDate,
+                  brand: hygieneEQCOMBrand,
+                  platform: hygieneEQCOMPlatform,
+                }}
+                options={hygieneEQCOMOptions}
+                onChangeFilters={(next) => {
+                  if (Object.prototype.hasOwnProperty.call(next, 'startDate')) setHygieneEQCOMStartDate(next.startDate);
+                  if (Object.prototype.hasOwnProperty.call(next, 'endDate')) setHygieneEQCOMEndDate(next.endDate);
+                  if (Object.prototype.hasOwnProperty.call(next, 'brand')) setHygieneEQCOMBrand(next.brand);
+                  if (Object.prototype.hasOwnProperty.call(next, 'platform')) setHygieneEQCOMPlatform(next.platform || []);
+                }}
+                onRefresh={fetchHygieneEQCOM}
               />
             ) : activeTab === 'hygiene-table' ? (
               <HygieneTable />
@@ -3353,7 +3383,17 @@ function App() {
     </div>
     </ThemeProvider>
   );
+} // Close AppContent function
+
+// Wrapper component that provides UserBrandsProvider context from the outside
+function App() {
+  return (
+    <UserBrandsProvider>
+      <AppContent />
+    </UserBrandsProvider>
+  );
 }
+
 
 export default App;
 

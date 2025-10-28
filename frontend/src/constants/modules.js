@@ -44,13 +44,25 @@ export const modules = [
 //  },
   {
     key: 'hygiene',
-    label: 'Hygiene',
-    icon: '🧼',
+    label: 'Hygiene ECOM',
+    icon: '📢',
     tabs: [
       { key: 'hygiene-overview', label: 'Hygiene Overview' },
       { key: 'hygiene-table', label: 'Table View' },
       { key: 'trend-analysis', label: 'Trend Analysis' },
       { key: 'correlation-matrix', label: 'Correlation Matrix' },
+//      { key: 'quality-metrics', label: 'Quality Metrics' },
+//      { key: 'compliance-reports', label: 'Compliance Reports' },
+    ],
+  },
+    {
+    key: 'hygiene_eqcom',
+    label: 'Hygiene EQCOM',
+    icon: '🧼',
+    tabs: [
+      { key: 'hygiene-overview', label: 'Hygiene Overview' },
+      { key: 'hygiene-table', label: 'Table View' },
+      { key: 'trend-analysis', label: 'Trend Analysis' },
 //      { key: 'quality-metrics', label: 'Quality Metrics' },
 //      { key: 'compliance-reports', label: 'Compliance Reports' },
     ],

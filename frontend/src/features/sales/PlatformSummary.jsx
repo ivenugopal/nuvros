@@ -167,23 +167,6 @@ const PlatformSummary = ({
           </div>
           {/* Removed duplicate manufacture source (first one). Keep a single MultiSelect below. */}
           <div className="date-input-group">
-            <label htmlFor="platform-summary-brand-filter">Brand:</label>
-            <MultiSelectDropdown
-              id="platform-summary-brand-filter"
-              options={options.brands || []}
-              values={filters.brand || []}
-              onChange={(vals) => {
-                console.log('🏷️ USER ACTION: Brand changed', {
-                  component: 'PlatformSummary',
-                  oldValue: filters.brand,
-                  newValue: vals,
-                  willTriggerAPI: false
-                });
-                onChangeFilters({ brand: vals });
-              }}
-            />
-          </div>
-          <div className="date-input-group">
             <label htmlFor="platform-summary-manufacture-filter">Manufacture Source:</label>
             <MultiSelectDropdown
               id="platform-summary-manufacture-filter"
@@ -228,7 +211,6 @@ const PlatformSummary = ({
                   platform: filters.platform,
                   city: filters.city,
                   supply_source: filters.supply_source,
-                  brand: filters.brand,
                   manufacturing_city: filters.manufacturing_city,
                   category: filters.category
                 }

@@ -65,7 +65,10 @@ const Sidebar = ({
                 <li
                   key={tab.key}
                   className={`tab-item ${activeTab === tab.key ? 'active' : ''}`}
-                  onClick={() => setActiveTab(tab.key)}
+                  onClick={() => {
+                    setActiveModule(module.key);
+                    setActiveTab(tab.key);
+                  }}
                 >
                   {tab.label}
                 </li>
