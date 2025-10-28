@@ -2789,6 +2789,12 @@ function AppContent() {
       if (res.data.success && res.data.token) {
         localStorage.setItem('token', res.data.token);
         setAuthToken(res.data.token);
+        // Always open Sales module on signup
+        setActiveModule('sales');
+        setContextActiveModule('sales');
+        setActiveTab('overall');
+        // Fetch user brands immediately after signup
+        await refetchBrands();
       } else {
         setAuthError(res.data.error || 'Signup failed');
       }
