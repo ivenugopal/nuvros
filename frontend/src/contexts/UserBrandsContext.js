@@ -14,14 +14,27 @@ export const useUserBrands = () => {
 export const UserBrandsProvider = ({ children }) => {
   const [userBrands, setUserBrands] = useState({
     sales: [],
+    hygiene: [],
+    drr: [],
     all: [],
     loading: false,
     error: null,
     lastFetched: null
   });
 
-  // Global selected brand state
-  const [selectedBrand, setSelectedBrand] = useState('');
+  // Global selected brand state - now supports multiple brands
+  const [selectedBrand, setSelectedBrand] = useState([]);
+
+  // Track current active module to show relevant brands
+  const [activeModule, setActiveModule] = useState('sales');
+
+  // Store selected brands per module to retain selection when switching back
+  const [moduleSelectedBrands, setModuleSelectedBrands] = useState({
+    sales: [],
+    hygiene: [],
+    hygiene_eqcom: [],
+    drr: []
+  });
 
   // Use ref to track if brands have been fetched to prevent duplicate calls
   const hasFetchedRef = useRef(false);
@@ -29,10 +42,54 @@ export const UserBrandsProvider = ({ children }) => {
   // Use ref to track selected brand for use in fetchBrands callback
   const selectedBrandRef = useRef(selectedBrand);
 
+  // Use ref to track activeModule for use in callbacks
+  const activeModuleRef = useRef(activeModule);
+
   // Keep ref in sync with state
   useEffect(() => {
     selectedBrandRef.current = selectedBrand;
   }, [selectedBrand]);
+
+  // Keep activeModule ref in sync
+  useEffect(() => {
+    activeModuleRef.current = activeModule;
+  }, [activeModule]);
+
+  // Auto-switch brand selection when module changes - now optional
+  useEffect(() => {
+    // Wait for brands to load
+    if (userBrands.loading || (!userBrands.sales.length && !userBrands.hygiene.length && !userBrands.drr.length)) {
+      return;
+    }
+
+    console.log('🔄 UserBrandsContext - activeModule changed:', activeModule);
+    console.log('📦 Current selectedBrand:', selectedBrand);
+    console.log('📦 moduleSelectedBrands:', moduleSelectedBrands);
+
+    // Get the brands for the current module
+    const currentModuleBrands = activeModule === 'sales' ? userBrands.sales
+      : (activeModule === 'hygiene' || activeModule === 'hygiene_eqcom') ? userBrands.hygiene
+      : activeModule === 'drr' ? userBrands.drr
+      : userBrands.sales;
+
+    // Check if there's a saved selection for this module
+    const savedSelection = moduleSelectedBrands[activeModule];
+
+    if (savedSelection && savedSelection.length > 0) {
+      // Validate saved brands exist in current module
+      const validSaved = savedSelection.filter(b => currentModuleBrands.includes(b));
+      if (validSaved.length > 0) {
+        console.log('♻️ Restoring saved brands for', activeModule, ':', validSaved);
+        setSelectedBrand(validSaved);
+        return;
+      }
+    }
+
+    // Brand selection is now optional - clear selection when no saved selection exists
+    console.log('ℹ️ No saved brand selection for', activeModule, '- clearing selectedBrand');
+    console.log('🧹 Clearing selectedBrand from:', selectedBrand, 'to: []');
+    setSelectedBrand([]);
+  }, [activeModule, userBrands]);
 
   // Fetch brands from API
   const fetchBrands = useCallback(async () => {
@@ -58,24 +115,24 @@ export const UserBrandsProvider = ({ children }) => {
         const brands = response.data.brands;
         console.log('✅ Brands fetched successfully:', brands);
 
-        // Update brands state
+        // Update brands state with module-specific brands
+        const salesBrandsList = brands.Sales || brands.ALL || brands || [];
+        const hygieneBrandsList = brands.Hygiene || brands.ALL || brands || [];
+        const drrBrandsList = brands.DRR || brands.ALL || brands || [];
+        const allBrandsList = brands.ALL || brands.Sales || brands || [];
+
         setUserBrands({
-          sales: brands.Sales || brands.ALL || brands || [],
-          all: brands.ALL || brands.Sales || brands || [],
+          sales: salesBrandsList,
+          hygiene: hygieneBrandsList,
+          drr: drrBrandsList,
+          all: allBrandsList,
           loading: false,
           error: null,
           lastFetched: new Date().toISOString()
         });
 
-        // Always set first brand as default when fetching brands (reset on login)
-        const defaultBrands = brands.Sales || brands.ALL || brands || [];
-        if (defaultBrands.length > 0) {
-          console.log('🔄 Setting default brand to first available:', defaultBrands[0]);
-          setSelectedBrand(defaultBrands[0]);
-        } else {
-          console.log('⚠️ No brands available, clearing selected brand');
-          setSelectedBrand('');
-        }
+        // Brand selection is now optional - no auto-selection on initial load
+        console.log('✅ Brands loaded - user can select from dropdown (optional)');
 
         // Store in localStorage for persistence
         localStorage.setItem('userBrands', JSON.stringify(brands));
@@ -143,9 +200,17 @@ export const UserBrandsProvider = ({ children }) => {
   const resetBrands = useCallback(() => {
     console.log('🔄 Resetting all brand state...');
     hasFetchedRef.current = false; // Reset the fetch flag
-    setSelectedBrand(''); // Clear selected brand
+    setSelectedBrand([]); // Clear selected brands (now an array)
+    setModuleSelectedBrands({
+      sales: [],
+      hygiene: [],
+      hygiene_eqcom: [],
+      drr: []
+    });
     setUserBrands({
       sales: [],
+      hygiene: [],
+      drr: [],
       all: [],
       loading: false,
       error: null,
@@ -153,6 +218,18 @@ export const UserBrandsProvider = ({ children }) => {
     });
     localStorage.removeItem('userBrands');
   }, []);
+
+  // Custom brand setter that saves selection per module
+  const setSelectedBrandForModule = useCallback((brands) => {
+    const currentModule = activeModuleRef.current;
+    console.log(`💾 Saving brand selection for ${currentModule}:`, brands);
+    setSelectedBrand(brands);
+    // Save the selection for the current module
+    setModuleSelectedBrands(prev => ({
+      ...prev,
+      [currentModule]: brands
+    }));
+  }, []); // Empty deps - uses ref for activeModule
 
   const value = {
     userBrands,
@@ -164,12 +241,19 @@ export const UserBrandsProvider = ({ children }) => {
     resetBrands, // Expose reset function for logout scenarios
     // Convenience getters
     salesBrands: userBrands.sales,
+    hygieneBrands: userBrands.hygiene,
+    drrBrands: userBrands.drr,
     allBrands: userBrands.all,
     isLoading: userBrands.loading,
     hasError: userBrands.error,
     // Global brand selection
     selectedBrand,
-    setSelectedBrand
+    setSelectedBrand: setSelectedBrandForModule, // Use custom setter that saves per module
+    // Active module tracking
+    activeModule,
+    setActiveModule,
+    // Module-specific brand selections
+    moduleSelectedBrands
   };
 
   return (

@@ -57,7 +57,7 @@ export const modules = [
   },
     {
     key: 'hygiene_eqcom',
-    label: 'Hygiene EQCOM',
+    label: 'Hygiene QCOM',
     icon: '🧼',
     tabs: [
       { key: 'hygiene-overview', label: 'Hygiene Overview' },

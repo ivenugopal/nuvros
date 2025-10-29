@@ -35,7 +35,19 @@ import CorrelationMatrix from './features/hygiene/CorrelationMatrix';
 
 // Inner component that uses UserBrandsContext
 function AppContent() {
-  const { selectedBrand, salesBrands, isLoading: brandsLoading, refetchBrands, resetBrands } = useUserBrands(); // Use global brand from context
+  const {
+    selectedBrand,
+    setSelectedBrand,
+    salesBrands,
+    hygieneBrands,
+    drrBrands,
+    activeModule: contextActiveModule,
+    setActiveModule: setContextActiveModule,
+    moduleSelectedBrands,
+    isLoading: brandsLoading,
+    refetchBrands,
+    resetBrands
+  } = useUserBrands(); // Use global brand from context
   const [authToken, setAuthToken] = useState(() => localStorage.getItem('token') || '');
   // Stock Levels (snapshot) filters
   const [stockQueryDate, setStockQueryDate] = useState('');
@@ -75,9 +87,9 @@ function AppContent() {
       if (invOvPlatform && invOvPlatform.length > 0 && !invOvPlatform.includes('All Platforms')) {
         params.platform = invOvPlatform[0];
       }
-      // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) {
-        params.brand = selectedBrand;
+      // Use selectedBrand from header if available (now an array)
+      if (selectedBrand && selectedBrand.length > 0) {
+        params.brand = selectedBrand.join(',');
       } else if (invOvBrand && invOvBrand.length > 0) {
         params.brand = invOvBrand[0];
       }
@@ -106,7 +118,7 @@ function AppContent() {
       setInvMovError(null);
       const params = {};
       if (invMovDate) params.query_date = invMovDate;
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       if (invMovSupply) params.supply_source = invMovSupply;
       const response = await api.get('/inventory-movements/', { params });
       if (response.data?.success) {
@@ -626,12 +638,30 @@ function AppContent() {
     }
   }, [brandsLoading, salesBrands]);
 
-  // Fetch data only once on load when authToken is available and brands are initialized
+  // Sync activeModule with context - brand selection is now handled in UserBrandsContext
+  useEffect(() => {
+    if (activeModule !== contextActiveModule) {
+      console.log('🔄 App.js - Syncing activeModule to context:', activeModule);
+      setContextActiveModule(activeModule);
+    }
+  }, [activeModule, contextActiveModule, setContextActiveModule]);
+
+  // Fetch data when Overall Sales Summary tab is active and brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
   useEffect(() => {
-    if (authToken && brandsInitialized) {
-      console.log('🔥 API TRIGGER - Initial load only:', {
-        trigger: 'OverallSummary useEffect (load only)',
+    if (!authToken || !brandsInitialized) return;
+    if (activeTab === 'overall' && activeModule === 'sales') {
+      // Validate that selected brands belong to Sales module
+      const hasInvalidBrand = selectedBrand.some(brand => !salesBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
+      console.log('🔥 API TRIGGER - Overall Sales Summary tab loaded:', {
+        trigger: 'OverallSummary useEffect',
+        activeTab,
+        activeModule,
         startDate,
         endDate,
         selectedBrand,
@@ -642,7 +672,7 @@ function AppContent() {
       // eslint-disable-next-line no-undef
       fetchTargetData();
     }
-  }, [authToken, brandsInitialized]); // Only authToken and brandsInitialized dependencies - API called once on load
+  }, [authToken, brandsInitialized, activeTab, activeModule, selectedBrand, salesBrands]); // Trigger when tab changes to 'overall' or brand changes
 
   // Fetch DRR data only when tab changes or pagination changes, and after brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
@@ -688,35 +718,114 @@ function AppContent() {
   }, [activeTab, adsStartDate, adsEndDate, adsBrand, adsPlatform, adsGroupBy, authToken, catSpendStartDate, catSpendEndDate, catSpendBrands]);
 
   useEffect(() => {
-    if (!authToken) return;
-    console.log('🔍 Hygiene ECOM check:', { activeTab, activeModule, match: activeTab === 'hygiene-overview' && activeModule === 'hygiene' });
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'hygiene-overview' && activeModule === 'hygiene') {
-      fetchHygiene();
+      // Validate that selected brands belong to Hygiene module (or is empty)
+      const hasInvalidBrand = selectedBrand.some(brand => !hygieneBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping Hygiene API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
+      // Brand selection is now optional - call API regardless
+      const isValidBrand = selectedBrand.length === 0 || hygieneBrands.includes(selectedBrand[0]);
+      console.log('🔍 Hygiene ECOM check:', {
+        activeTab,
+        activeModule,
+        selectedBrand,
+        hygieneBrands: hygieneBrands.slice(0, 3),
+        isValidBrand,
+        note: 'Brand is optional'
+      });
+      if (isValidBrand) {
+        console.log('✅ Calling Hygiene API' + (selectedBrand.length > 0 ? ' with brand: ' + selectedBrand[0] : ' without brand filter'));
+        fetchHygiene();
+      }
     }
-  }, [activeTab, activeModule, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken]);
+  }, [activeTab, activeModule, hygieneStartDate, hygieneEndDate, hygieneBrand, hygienePlatform, authToken, brandsInitialized, hygieneBrands, selectedBrand]);
 
   useEffect(() => {
-    if (!authToken) return;
-    console.log('🔍 Hygiene EQCOM check:', { activeTab, activeModule, match: activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom' });
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'hygiene-overview' && activeModule === 'hygiene_eqcom') {
-      console.log('✅ Fetching HygieneEQCOM data...');
-      fetchHygieneEQCOM();
+      // Validate that selected brands belong to Hygiene module (or is empty)
+      const hasInvalidBrand = selectedBrand.some(brand => !hygieneBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping HygieneEQCOM API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
+      // Brand selection is now optional - call API regardless
+      const isValidBrand = selectedBrand.length === 0 || hygieneBrands.includes(selectedBrand[0]);
+      console.log('🔍 Hygiene EQCOM check:', {
+        activeTab,
+        activeModule,
+        selectedBrand,
+        hygieneBrands: hygieneBrands.slice(0, 3),
+        isValidBrand,
+        note: 'Brand is optional'
+      });
+      if (isValidBrand) {
+        console.log('✅ Calling HygieneEQCOM API' + (selectedBrand.length > 0 ? ' with brand: ' + selectedBrand[0] : ' without brand filter'));
+        fetchHygieneEQCOM();
+      }
     }
-  }, [activeTab, activeModule, hygieneEQCOMStartDate, hygieneEQCOMEndDate, hygieneEQCOMBrand, hygieneEQCOMPlatform, authToken]);
+  }, [activeTab, activeModule, hygieneEQCOMStartDate, hygieneEQCOMEndDate, hygieneEQCOMBrand, hygieneEQCOMPlatform, authToken, brandsInitialized, hygieneBrands, selectedBrand]);
 
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'trend-analysis') {
-      fetchTrend();
+      // Validate that selected brands belong to the current module (or is empty)
+      let moduleBrands = activeModule === 'hygiene' || activeModule === 'hygiene_eqcom' ? hygieneBrands : salesBrands;
+      const hasInvalidBrand = selectedBrand.some(brand => !moduleBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping Trend Analysis API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
+      // Brand selection is now optional - call API regardless
+      const isValidBrand = selectedBrand.length === 0 || moduleBrands.includes(selectedBrand[0]);
+      console.log('🔍 Trend Analysis check:', {
+        activeTab,
+        activeModule,
+        selectedBrand,
+        moduleBrands: moduleBrands.slice(0, 3),
+        isValidBrand,
+        note: 'Brand is optional'
+      });
+      if (isValidBrand) {
+        console.log('✅ Calling Trend Analysis API' + (selectedBrand.length > 0 ? ' with brand: ' + selectedBrand[0] : ' without brand filter'));
+        fetchTrend();
+      }
     }
-  }, [activeTab, trendStartDate, trendEndDate, trendBrand, trendPlatform, authToken]);
+  }, [activeTab, activeModule, trendStartDate, trendEndDate, trendBrand, trendPlatform, authToken, brandsInitialized, hygieneBrands, salesBrands, selectedBrand]);
 
   useEffect(() => {
-    if (!authToken) return;
+    if (!authToken || !brandsInitialized) return;
     if (activeTab === 'correlation-matrix') {
-      fetchCorrelation();
+      // Validate that selected brands belong to the current module (or is empty)
+      let moduleBrands = activeModule === 'hygiene' || activeModule === 'hygiene_eqcom' ? hygieneBrands : salesBrands;
+      const hasInvalidBrand = selectedBrand.some(brand => !moduleBrands.includes(brand));
+      if (hasInvalidBrand) {
+        console.log('⏸️ Skipping Correlation Matrix API call - brand mismatch detected (module switch in progress)');
+        return;
+      }
+
+      // Brand selection is now optional - call API regardless
+      const isValidBrand = selectedBrand.length === 0 || moduleBrands.includes(selectedBrand[0]);
+      console.log('🔍 Correlation Matrix check:', {
+        activeTab,
+        activeModule,
+        selectedBrand,
+        moduleBrands: moduleBrands.slice(0, 3),
+        isValidBrand,
+        note: 'Brand is optional'
+      });
+      if (isValidBrand) {
+        console.log('✅ Calling Correlation Matrix API' + (selectedBrand.length > 0 ? ' with brand: ' + selectedBrand[0] : ' without brand filter'));
+        fetchCorrelation();
+      }
     }
-  }, [activeTab, correlationStartDate, correlationEndDate, correlationBrand, correlationPlatform, authToken]);
+  }, [activeTab, activeModule, correlationStartDate, correlationEndDate, correlationBrand, correlationPlatform, authToken, brandsInitialized, hygieneBrands, salesBrands, selectedBrand]);
 
   // Fetch SalesPerformance data only when tab or view changes and after brands are initialized
   // Filter changes will NOT trigger API calls - user must click APPLY button
@@ -913,7 +1022,7 @@ function AppContent() {
         if (selectedManufacturingCity) params.manufacturing_city = selectedManufacturingCity;
         if (selectedManufacturingCity) params.manufacturing_city = selectedManufacturingCity;
         if (selectedCategory) params.category = selectedCategory;
-        if (selectedBrand) params.brand = selectedBrand;
+        if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
 
         const response = await api.get('/drr-report/', { params });
 
@@ -1021,15 +1130,14 @@ function AppContent() {
       const params = {};
       if (platformSummaryStartDate) params.start_date = platformSummaryStartDate;
       if (platformSummaryEndDate) params.end_date = platformSummaryEndDate;
-      // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      // Use selectedBrand from header if available (now an array)
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
       if (selectedPlatformSummaryCity) params.city = selectedPlatformSummaryCity;
       if (selectedPlatformSummarySupplySource) params.supply_source = selectedPlatformSummarySupplySource;
       if (selectedPlatformSummaryCategory) params.category = selectedPlatformSummaryCategory;
       if (Array.isArray(selectedPlatformSummaryManufacturingCity) && selectedPlatformSummaryManufacturingCity.length > 0) params.manufacturing_city = selectedPlatformSummaryManufacturingCity.join(',');
-      if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
-      
+
       const response = await api.get('/platform-sales-summary/', { params });
       return response.data.success ? response.data.data : [];
     } catch (err) {
@@ -1097,8 +1205,8 @@ function AppContent() {
     try {
       // Platform report doesn't seem to have pagination based on the regular fetch function
       const params = {};
-      // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      // Use selectedBrand from header if available (now an array)
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       if (platformReportMonthStart) params.month_start = platformReportMonthStart;
       if (platformReportMonthEnd) params.month_end = platformReportMonthEnd;
       if (Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0) params.platform = selectedPlatformReport.join(',');
@@ -1359,7 +1467,7 @@ function AppContent() {
       if (Array.isArray(selectedContribCategory) && selectedContribCategory.length > 0) params.category = selectedContribCategory.join(',');
       if (Array.isArray(selectedContribSubCategory) && selectedContribSubCategory.length > 0) params.sub_category = selectedContribSubCategory.join(',');
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (Array.isArray(selectedContribBrands) && selectedContribBrands.length > 0) params.brand = selectedContribBrands.join(',');
       const response = await api.get('/sales-contribution/', { params });
       if (response.data.success) {
@@ -1391,7 +1499,7 @@ function AppContent() {
       // Use the new snapshot endpoint for Stock Levels tab
       const params = {};
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (inventoryBrand) params.brand = inventoryBrand;
       if (inventoryPlatform) params.platform = inventoryPlatform;
       if (inventoryWarehouseCity) params.supply_source = inventoryWarehouseCity;
@@ -1423,7 +1531,7 @@ function AppContent() {
       if (dailyReportStartDate) params.start_date = dailyReportStartDate;
       if (dailyReportEndDate) params.end_date = dailyReportEndDate;
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       if (Array.isArray(selectedDailyReportPlatform) && selectedDailyReportPlatform.length > 0) params.platform = selectedDailyReportPlatform.join(',');
       else if (typeof selectedDailyReportPlatform === 'string' && selectedDailyReportPlatform) params.platform = selectedDailyReportPlatform;
       if (selectedDailyReportMetric) params.metric = selectedDailyReportMetric;
@@ -1431,13 +1539,13 @@ function AppContent() {
       // Use selectedBrand from header if available and not "All Brands" (empty string)
       // Use selectedBrand from header if available and not "All Brands" (empty string)
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
-      if (selectedBrand) params.brand = selectedBrand;
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (Array.isArray(selectedDailyReportBrands) && selectedDailyReportBrands.length > 0) params.brand = selectedDailyReportBrands.join(',');
       if (Array.isArray(selectedDailyReportCities) && selectedDailyReportCities.length > 0) params.city = selectedDailyReportCities.join(',');
       if (Array.isArray(selectedDailyReportSupplySources) && selectedDailyReportSupplySources.length > 0) params.supply_source = selectedDailyReportSupplySources.join(',');
@@ -1619,12 +1727,17 @@ function AppContent() {
 
   const fetchData = async () => {
     try {
+      // Validate that selected brands belong to Sales module before passing to API
+      const validSalesBrands = selectedBrand.filter(brand => salesBrands.includes(brand));
+
       console.log('🌐 API CALL - fetchData() called', {
         endpoint: '/consolidated-data/',
         params: {
           start_date: startDate,
           end_date: endDate,
-          brand: selectedBrand
+          selectedBrand,
+          validSalesBrands,
+          salesBrands: salesBrands.slice(0, 3)
         }
       });
       setLoading(true);
@@ -1632,8 +1745,13 @@ function AppContent() {
       const params = {};
       if (startDate) params.start_date = startDate;
       if (endDate) params.end_date = endDate;
-      // Only pass brand if not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      // Only pass brand if it belongs to Sales module
+      if (validSalesBrands && validSalesBrands.length > 0) {
+        params.brand = validSalesBrands.join(',');
+        console.log('✅ Passing valid Sales brands to API:', validSalesBrands);
+      } else {
+        console.log('ℹ️ No valid Sales brands to pass to API');
+      }
       const response = await api.get('/consolidated-data/', { params });
       if (response.data.success) {
         setData(response.data.data);
@@ -1650,17 +1768,22 @@ function AppContent() {
   };
 
   const fetchTargetData = async () => {
-      // Only pass brand if not "All Brands" (empty string)
     try {
+      // Validate that selected brands belong to Sales module before passing to API
+      const validSalesBrands = selectedBrand.filter(brand => salesBrands.includes(brand));
+
       setTargetLoading(true);
       setTargetError(null); // Clear any previous errors
       const params = {};
-      // Only pass brand if not "All Brands" (empty string)
       if (startDate) params.start_date = startDate;
-      // Only pass brand if not "All Brands" (empty string)
-      // Only pass brand if not "All Brands" (empty string)
       if (endDate) params.end_date = endDate;
-      if (selectedBrand) params.brand = selectedBrand;
+      // Only pass brand if it belongs to Sales module
+      if (validSalesBrands && validSalesBrands.length > 0) {
+        params.brand = validSalesBrands.join(',');
+        console.log('✅ Passing valid Sales brands to Target API:', validSalesBrands);
+      } else {
+        console.log('ℹ️ No valid Sales brands to pass to Target API');
+      }
       const response = await api.get('/sales-target-data/', { params });
       if (response.data.success) {
         setTargetData(response.data.data);
@@ -1738,9 +1861,10 @@ function AppContent() {
           supply_source: Array.isArray(selectedPlatformReportSupplySource) && selectedPlatformReportSupplySource.length > 0 ? selectedPlatformReportSupplySource.join(',') : undefined,
           metric: selectedMetricReport,
           manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined,
-          // Use selectedBrand from header if available and not "All Brands" (empty string)
-          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
-            ? selectedPlatformReportBrands.join(',') : undefined)
+          // Use selectedBrand from header if available - always join array with commas
+          brand: Array.isArray(selectedBrand) && selectedBrand.length > 0 ? selectedBrand.join(',') :
+                 (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+                   ? selectedPlatformReportBrands.join(',') : undefined)
         };
 
         // Remove undefined values
@@ -1843,15 +1967,16 @@ function AppContent() {
         const params = {
           year,
           month,
-          platform: selectedPlatformReport,
-          city: selectedPlatformReportCity,
-          supply_source: selectedPlatformReportSupplySource,
-          category: selectedPlatformReportCategory,
+          platform: Array.isArray(selectedPlatformReport) && selectedPlatformReport.length > 0 ? selectedPlatformReport.join(',') : undefined,
+          city: Array.isArray(selectedPlatformReportCity) && selectedPlatformReportCity.length > 0 ? selectedPlatformReportCity.join(',') : undefined,
+          supply_source: Array.isArray(selectedPlatformReportSupplySource) && selectedPlatformReportSupplySource.length > 0 ? selectedPlatformReportSupplySource.join(',') : undefined,
+          category: Array.isArray(selectedPlatformReportCategory) && selectedPlatformReportCategory.length > 0 ? selectedPlatformReportCategory.join(',') : undefined,
           metric: selectedMetricReport,
-          manufacturing_city: selectedPlatformReportManufacturingCity,
-          // Use selectedBrand from header if available and not "All Brands" (empty string)
-          brand: selectedBrand ? selectedBrand : (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
-            ? selectedPlatformReportBrands.join(',') : undefined)
+          manufacturing_city: Array.isArray(selectedPlatformReportManufacturingCity) && selectedPlatformReportManufacturingCity.length > 0 ? selectedPlatformReportManufacturingCity.join(',') : undefined,
+          // Use selectedBrand from header if available - always join array with commas
+          brand: Array.isArray(selectedBrand) && selectedBrand.length > 0 ? selectedBrand.join(',') :
+                 (Array.isArray(selectedPlatformReportBrands) && selectedPlatformReportBrands.length > 0
+                   ? selectedPlatformReportBrands.join(',') : undefined)
         };
 
         // Remove undefined values
@@ -2051,10 +2176,18 @@ function AppContent() {
       if (selectedDrrManufacturingCities && selectedDrrManufacturingCities.length > 0) params.manufacturing_city = selectedDrrManufacturingCities.join(',');
       if (selectedDrrCategories && selectedDrrCategories.length > 0) params.category = selectedDrrCategories.join(',');
       if (selectedDrrSubCategories && selectedDrrSubCategories.length > 0) params.sub_category = selectedDrrSubCategories.join(',');
-      // Use selectedBrand from header (global brand selector)
-      if (selectedBrand) params.brand = selectedBrand;
-      // Also include local DRR brand filters if they exist
-      else if (selectedDrrBrands && selectedDrrBrands.length > 0) params.brand = selectedDrrBrands.join(',');
+
+      // Validate that selected brands belong to Sales module before passing to API
+      const validSalesBrands = selectedBrand.filter(brand => salesBrands.includes(brand));
+      if (validSalesBrands && validSalesBrands.length > 0) {
+        params.brand = validSalesBrands.join(',');
+        console.log('✅ DRR: Passing valid Sales brands to API:', validSalesBrands);
+      } else if (selectedDrrBrands && selectedDrrBrands.length > 0) {
+        // Also include local DRR brand filters if they exist
+        params.brand = selectedDrrBrands.join(',');
+      } else {
+        console.log('ℹ️ DRR: No valid Sales brands to pass to API');
+      }
 
       const response = await api.get('/drr-report/', { params });
       if (response.data.success) {
@@ -2101,7 +2234,7 @@ function AppContent() {
       setPlatformSummaryError(null);
       const params = {};
       // Use selectedBrand from header if available and not "All Brands" (empty string)
-      if (selectedBrand) params.brand = selectedBrand;
+      if (selectedBrand && selectedBrand.length > 0) params.brand = selectedBrand.join(',');
       else if (Array.isArray(selectedPlatformSummaryBrands) && selectedPlatformSummaryBrands.length > 0) params.brand = selectedPlatformSummaryBrands.join(',');
       if (platformSummaryStartDate) params.start_date = platformSummaryStartDate;
       if (platformSummaryEndDate) params.end_date = platformSummaryEndDate;
@@ -2615,8 +2748,6 @@ function AppContent() {
   const onAuthChange = (e) => setAuthForm({ ...authForm, [e.target.name]: e.target.value });
 
   const doLogin = async (e) => {
-        // Fetch user brands immediately after signup
-        await refetchBrands();
     e.preventDefault();
     setAuthLoading(true);
     setAuthError('');
@@ -2628,6 +2759,10 @@ function AppContent() {
       if (res.data.success && res.data.token) {
         localStorage.setItem('token', res.data.token);
         setAuthToken(res.data.token);
+        // Always open Sales module on login
+        setActiveModule('sales');
+        setContextActiveModule('sales');
+        setActiveTab('overall');
         // Fetch user brands immediately after login
         await refetchBrands();
       } else {
@@ -2654,6 +2789,12 @@ function AppContent() {
       if (res.data.success && res.data.token) {
         localStorage.setItem('token', res.data.token);
         setAuthToken(res.data.token);
+        // Always open Sales module on signup
+        setActiveModule('sales');
+        setContextActiveModule('sales');
+        setActiveTab('overall');
+        // Fetch user brands immediately after signup
+        await refetchBrands();
       } else {
         setAuthError(res.data.error || 'Signup failed');
       }
@@ -2669,6 +2810,9 @@ function AppContent() {
     localStorage.removeItem('userBrands');
     resetBrands(); // Clear all brand state on logout
     setAuthToken('');
+    setActiveModule('sales'); // Always reset to Sales module on logout
+    setContextActiveModule('sales'); // Also reset context's activeModule
+    setActiveTab('overall'); // Reset to first tab in Sales module
   };
 
   if (!authToken) {
@@ -2677,7 +2821,7 @@ function AppContent() {
         <div className="App">
           <header className="App-header">
             <div className="header-content">
-              <h1>NuvrOS</h1>
+              <h1>Nuvr</h1>
               <p>Please {authView === 'login' ? 'sign in' : 'sign up'} to continue</p>
             </div>
             <div className="header-actions">

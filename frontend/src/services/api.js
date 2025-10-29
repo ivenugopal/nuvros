@@ -150,9 +150,15 @@ export const fetchPlatformSalesSubcategoryDrilldown = async (filters) => {
   if (filters.platform) params.append('platform', filters.platform);
   if (filters.city) params.append('city', filters.city);
   if (filters.supply_source) params.append('supply_source', filters.supply_source);
-  // Use selectedBrand from header if available and not "All Brands" (empty string)
-  if (filters.selectedBrand) params.append('brand', filters.selectedBrand);
-  else if (filters.brand) params.append('brand', filters.brand);
+
+  // Handle selectedBrand (array) from header - only append if it has values
+  if (filters.selectedBrand && Array.isArray(filters.selectedBrand) && filters.selectedBrand.length > 0) {
+    params.append('brand', filters.selectedBrand.join(','));
+  } else if (filters.brand) {
+    // Fallback to local brand filter if selectedBrand is not available
+    params.append('brand', filters.brand);
+  }
+
   if (filters.category) params.append('category', filters.category);
 
   const response = await api.get(`platform-sales-subcategory-drilldown/?${params.toString()}`);
@@ -164,9 +170,15 @@ export const fetchAdsOverview = async (filters = {}) => {
   const params = new URLSearchParams();
   if (filters.startDate) params.append('start_date', filters.startDate);
   if (filters.endDate) params.append('end_date', filters.endDate);
-  // Use selectedBrand from header if available and not "All Brands" (empty string)
-  if (filters.selectedBrand) params.append('brand', filters.selectedBrand);
-  else if (filters.brand) params.append('brand', filters.brand);
+
+  // Handle selectedBrand (array) from header - only append if it has values
+  if (filters.selectedBrand && Array.isArray(filters.selectedBrand) && filters.selectedBrand.length > 0) {
+    params.append('brand', filters.selectedBrand.join(','));
+  } else if (filters.brand) {
+    // Fallback to local brand filter if selectedBrand is not available
+    params.append('brand', filters.brand);
+  }
+
   if (filters.platform) params.append('platform', filters.platform);
   if (filters.groupBy) params.append('group_by', filters.groupBy);
   const response = await api.get(`ads-overview/?${params.toString()}`);
@@ -178,9 +190,14 @@ export const fetchAdsCategorySpends = async ({ startDate, endDate, brands = [], 
   const params = new URLSearchParams();
   if (startDate) params.append('start_date', startDate);
   if (endDate) params.append('end_date', endDate);
-  // Use selectedBrand from header if available and not "All Brands" (empty string)
-  if (selectedBrand) params.append('brands', selectedBrand);
-  else if (brands && brands.length > 0) params.append('brands', brands.join(','));
+
+  // Handle selectedBrand (array) from header - only append if it has values
+  if (selectedBrand && Array.isArray(selectedBrand) && selectedBrand.length > 0) {
+    params.append('brands', selectedBrand.join(','));
+  } else if (brands && brands.length > 0) {
+    params.append('brands', brands.join(','));
+  }
+
   const response = await api.get(`ads-category-spends/?${params.toString()}`);
   return response.data;
 };
@@ -190,9 +207,15 @@ export const fetchHygieneOverview = async (filters = {}) => {
   const params = new URLSearchParams();
   if (filters.startDate) params.append('start_date', filters.startDate);
   if (filters.endDate) params.append('end_date', filters.endDate);
-  // Use selectedBrand from header if available and not "All Brands" (empty string)
-  if (filters.selectedBrand) params.append('brand', filters.selectedBrand);
-  else if (filters.brand) params.append('brand', filters.brand);
+
+  // Handle selectedBrand (array) from header - only append if it has values
+  if (filters.selectedBrand && Array.isArray(filters.selectedBrand) && filters.selectedBrand.length > 0) {
+    params.append('brand', filters.selectedBrand.join(','));
+  } else if (filters.brand) {
+    // Fallback to local brand filter if selectedBrand is not available
+    params.append('brand', filters.brand);
+  }
+
   if (filters.platform && filters.platform.length > 0) {
     params.append('platform', filters.platform.join(','));
   }
@@ -206,9 +229,15 @@ export const fetchTrendAnalysis = async (filters = {}) => {
   const params = new URLSearchParams();
   if (filters.startDate) params.append('start_date', filters.startDate);
   if (filters.endDate) params.append('end_date', filters.endDate);
-  // Use selectedBrand from header if available and not "All Brands" (empty string)
-  if (filters.selectedBrand) params.append('brand', filters.selectedBrand);
-  else if (filters.brand) params.append('brand', filters.brand);
+
+  // Handle selectedBrand (array) from header - only append if it has values
+  if (filters.selectedBrand && Array.isArray(filters.selectedBrand) && filters.selectedBrand.length > 0) {
+    params.append('brand', filters.selectedBrand.join(','));
+  } else if (filters.brand) {
+    // Fallback to local brand filter if selectedBrand is not available
+    params.append('brand', filters.brand);
+  }
+
   if (filters.platform && filters.platform.length > 0) {
     params.append('platform', filters.platform[0]); // Take first platform for trend analysis
   }
@@ -223,9 +252,15 @@ export const fetchCorrelationMatrix = async (filters = {}) => {
   const params = new URLSearchParams();
   if (filters.startDate) params.append('start_date', filters.startDate);
   if (filters.endDate) params.append('end_date', filters.endDate);
-  // Use selectedBrand from header if available and not "All Brands" (empty string)
-  if (filters.selectedBrand) params.append('brand', filters.selectedBrand);
-  else if (filters.brand) params.append('brand', filters.brand);
+
+  // Handle selectedBrand (array) from header - only append if it has values
+  if (filters.selectedBrand && Array.isArray(filters.selectedBrand) && filters.selectedBrand.length > 0) {
+    params.append('brand', filters.selectedBrand.join(','));
+  } else if (filters.brand) {
+    // Fallback to local brand filter if selectedBrand is not available
+    params.append('brand', filters.brand);
+  }
+
   if (filters.platform && filters.platform.length > 0) {
     params.append('platform', filters.platform.join(','));
   }
@@ -244,9 +279,15 @@ export const fetchHygieneTable = async (filters = {}) => {
   const params = new URLSearchParams();
   if (filters.startDate) params.append('start_date', filters.startDate);
   if (filters.endDate) params.append('end_date', filters.endDate);
-  // Use selectedBrand from header if available and not "All Brands" (empty string)
-  if (filters.selectedBrand) params.append('brand', filters.selectedBrand);
-  else if (filters.brand) params.append('brand', filters.brand);
+
+  // Handle selectedBrand (array) from header - only append if it has values
+  if (filters.selectedBrand && Array.isArray(filters.selectedBrand) && filters.selectedBrand.length > 0) {
+    params.append('brand', filters.selectedBrand.join(','));
+  } else if (filters.brand) {
+    // Fallback to local brand filter if selectedBrand is not available
+    params.append('brand', filters.brand);
+  }
+
   if (filters.platform && filters.platform.length > 0) {
     params.append('platform', filters.platform.join(','));
   }

@@ -228,10 +228,12 @@ export default function MultiSelectDropdown({
             value={query} 
             onChange={(e) => setQuery(e.target.value)} 
           />
-          <div style={{ ...listItemStyle, fontWeight: 600, color: isDarkMode ? '#f7fafc' : 'inherit' }} onClick={handleSelectAll}>
-            <input type="checkbox" style={checkboxStyle} checked={allSelected} readOnly />
-            {selectAllLabel}
-          </div>
+          {selectAllLabel && (
+            <div style={{ ...listItemStyle, fontWeight: 600, color: isDarkMode ? '#f7fafc' : 'inherit' }} onClick={handleSelectAll}>
+              <input type="checkbox" style={checkboxStyle} checked={allSelected} readOnly />
+              {selectAllLabel}
+            </div>
+          )}
           {filtered.map((opt) => (
             <div key={opt} style={{ ...listItemStyle, color: isDarkMode ? '#f7fafc' : 'inherit' }} onClick={() => toggleValue(opt)}>
               <input type="checkbox" style={checkboxStyle} checked={(values || []).includes(opt)} readOnly />

@@ -23,10 +23,8 @@ logger = logging.getLogger(__name__)
 def get_user_brands(request):
     """
     API: Fetch allowed brands for the authenticated user.
-    - Reads allowed_brands column from users_data table.
-    - If 'ALL', returns all available brands.
-    - If specific, returns only those brands.
-    - If empty or missing, returns [].
+    - Returns module-wise allowed brands for the current user.
+    - If user has "ALL" or empty config, returns all brands for each module.
     """
     try:
         username = getattr(request.current_user, "full_name", None)
@@ -36,21 +34,44 @@ def get_user_brands(request):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # ✅ Fetch allowed brands (handles ALL logic internally)
-        brands = get_allowed_brands_for_user(username)
+        # 🔹 Get allowed brands per module
+        module_brands = get_allowed_brands_for_user(username)
 
-        # ✅ Fallback (if user has no brands at all)
-        if not brands:
+        # 🔹 If user has no restrictions, fetch all brands once
+        if not module_brands:
             with connection.cursor() as c:
                 c.execute("""
-                    SELECT DISTINCT brand
+                    SELECT DISTINCT brand 
                     FROM public.sales_master_consolidated_final_test
                     WHERE brand IS NOT NULL
                     ORDER BY brand
                 """)
-                brands = [r[0] for r in c.fetchall()]
+                all_brands = [r[0] for r in c.fetchall()]
+            return Response(
+                {"success": True, "brands": {"ALL": all_brands}},
+                status=status.HTTP_200_OK
+            )
 
-        return Response({"success": True, "brands": brands}, status=status.HTTP_200_OK)
+        # 🔹 OPTIMIZATION: Fetch all brands once and reuse for empty module lists
+        all_brands = None
+        has_empty_modules = any(not brands for brands in module_brands.values())
+
+        if has_empty_modules:
+            with connection.cursor() as c:
+                c.execute("""
+                    SELECT DISTINCT brand 
+                    FROM public.sales_master_consolidated_final_test
+                    WHERE brand IS NOT NULL
+                    ORDER BY brand
+                """)
+                all_brands = [r[0] for r in c.fetchall()]
+
+        # 🔹 Ensure no empty brand lists
+        for module, brands in module_brands.items():
+            if not brands:
+                module_brands[module] = all_brands
+
+        return Response({"success": True, "brands": module_brands}, status=status.HTTP_200_OK)
 
     except Exception as e:
         return Response(

@@ -24,46 +24,54 @@ def get_all_brands_from_db():
 
 def get_allowed_brands_for_user(username: str):
     """
-    Fetch allowed brands for a given username.
+    Fetch allowed brands for all modules for the given username.
+    Expands "ALL" dynamically to actual brand list from the database.
 
-    Logic:
-    - If allowed_brands = 'ALL' (case-insensitive) → return all brands from sales_master_consolidated_final_test.
-    - Otherwise → return comma-separated brands from allowed_brands column.
-    - If user or column missing → return empty list.
+    Returns:
+        dict(module_name -> list of brands)
+        Example:
+        {
+          "Sales": ["Clear", "Bindu"],
+          "Hygiene": ["Kyzile", "Bislere"],
+          "DRR": ["Clear", "Bindu", "Dove"]
+        }
     """
+
+    if not username:
+        return {}
+
+    # 🔹 Step 1: Fetch mapping from DB
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            SELECT module_brand_mapping
+            FROM public.users_data
+            WHERE full_name = %s
+        """, [username])
+        result = cursor.fetchone()
+
+    if not result or not result[0]:
+        return {}
+
+    # 🔹 Step 2: Safely parse JSONB column
     try:
-        with connection.cursor() as cursor:
-            # Fetch the allowed_brands value for the given user
-            cursor.execute("""
-                SELECT allowed_brands
-                FROM public.users_data
-                WHERE full_name = %s
-            """, [username])
-            result = cursor.fetchone()
+        mapping = json.loads(result[0]) if isinstance(result[0], str) else result[0]
+    except (TypeError, json.JSONDecodeError):
+        return {}
 
-            if not result or not result[0]:
-                return []  # No entry or empty value
+    all_brands = get_all_brands_from_db()
+    expanded_mapping = {}
 
-            allowed_value = result[0].strip()
+    # 🔹 Step 4: Expand "ALL" per module and sort alphabetically
+    for module, brands in (mapping or {}).items():
+        if not isinstance(brands, list):
+            continue
+        if any(str(b).upper() == "ALL" for b in brands):
+            expanded_mapping[module] = all_brands.copy()  # already sorted from get_all_brands_from_db
+        else:
+            # Sort user-specific brands alphabetically
+            expanded_mapping[module] = sorted([b.strip() for b in brands if b and b.strip()])
 
-            # ✅ Case 1: User has ALL access
-            if allowed_value.upper() == "ALL":
-                cursor.execute("""
-                    SELECT DISTINCT brand
-                    FROM public.sales_master_consolidated_final_test
-                    WHERE brand IS NOT NULL
-                    ORDER BY brand
-                """)
-                return [row[0] for row in cursor.fetchall()]
-
-            # ✅ Case 2: User has specific brand list (comma-separated)
-            brands = [b.strip() for b in allowed_value.split(',') if b.strip()]
-            return brands
-
-    except Exception as e:
-        # Optional: log this error instead of raising
-        print(f"[get_allowed_brands_for_user] Error for user {username}: {e}")
-        return []
+    return expanded_mapping
 
 def parse_date(val):
     try:
