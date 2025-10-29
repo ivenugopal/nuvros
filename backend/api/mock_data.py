@@ -1,0 +1,108 @@
+hygiene_overview_mock_data = [
+                    {
+                        'date': '2024-01-15',
+                        'brand': 'Clear',
+                        'platform': 'Amazon',
+                        'price_rule': 'Standard',
+                        'live_price': 299.00,
+                        'price_hygiene': '100%',
+                        'coupon_hygiene': '95%',
+                        'activation_hygiene': '100%',
+                        'availability_hygiene': '98%',
+                        'deal_hygiene': '100%',
+                        'edd_hygiene': '95%',
+                        'sold_by_validation': '90%',
+                        'rating_hygiene': '90%',
+                        'catalog_hygiene': '88%'
+                    },
+                    {
+                        'date': '2024-01-15',
+                        'brand': 'Clear',
+                        'platform': 'Flipkart',
+                        'price_rule': 'Standard',
+                        'live_price': 299.00,
+                        'price_hygiene': '85%',
+                        'coupon_hygiene': '75%',
+                        'activation_hygiene': '50%',
+                        'availability_hygiene': '60%',
+                        'deal_hygiene': '45%',
+                        'edd_hygiene': '80%',
+                        'sold_by_validation': '95%',
+                        'rating_hygiene': '75%',
+                        'catalog_hygiene': '82%'
+                    },
+                    {
+                        'date': '2024-01-16',
+                        'brand': 'Clear',
+                        'platform': 'Amazon',
+                        'price_rule': 'Premium',
+                        'live_price': 350.00,
+                        'price_hygiene': '70%',
+                        'coupon_hygiene': '88%',
+                        'activation_hygiene': '0%',
+                        'availability_hygiene': '92%',
+                        'deal_hygiene': '100%',
+                        'edd_hygiene': '70%',
+                        'sold_by_validation': '60%',
+                        'rating_hygiene': '85%',
+                        'catalog_hygiene': '78%'
+                    }
+                ]
+trend_analysis_mock_data = [
+                    {"Date": "2024-01-01", "Brand": "Clear", "Platform": "Amazon", "Live Price": 299.0,
+                     "Sub-Category BSR": 150.0, "Category BSR": 450.0, "Discount": 10.0},
+                    {"Date": "2024-01-02", "Brand": "Clear", "Platform": "Amazon", "Live Price": 295.0,
+                     "Sub-Category BSR": 145.0, "Category BSR": 440.0, "Discount": 12.0},
+                    {"Date": "2024-01-03", "Brand": "Clear", "Platform": "Amazon", "Live Price": 301.0,
+                     "Sub-Category BSR": 155.0, "Category BSR": 460.0, "Discount": 8.0},
+                ]
+hygiene_table_mock_data = [
+                    {
+                        'Date': '2024-01-15',
+                        'Brand': 'Clear',
+                        'Platform': 'Amazon',
+                        'Price Rule': 'Standard',
+                        'Live Price': 299.00,
+                        'Price_Hygiene': '100%',
+                        'Coupon_Hygiene': '95%',
+                        'Activation_Hygiene': '100%',
+                        'Availability_Hygiene': '98%',
+                        'Deal_Hygiene': '100%',
+                        'EDD_Hygiene': '95%',
+                        'Sold By Validation': '90%',
+                        'Rating_Hygiene': '90%',
+                        'Catalog_Hygiene': '88%'
+                    },
+                    {
+                        'Date': '2024-01-15',
+                        'Brand': 'Clear',
+                        'Platform': 'Flipkart',
+                        'Price Rule': 'Standard',
+                        'Live Price': 299.00,
+                        'Price_Hygiene': '85%',
+                        'Coupon_Hygiene': '75%',
+                        'Activation_Hygiene': '50%',
+                        'Availability_Hygiene': '60%',
+                        'Deal_Hygiene': '45%',
+                        'EDD_Hygiene': '80%',
+                        'Sold By Validation': '95%',
+                        'Rating_Hygiene': '75%',
+                        'Catalog_Hygiene': '82%'
+                    },
+                    {
+                        'Date': '2024-01-16',
+                        'Brand': 'Clear',
+                        'Platform': 'Amazon',
+                        'Price Rule': 'Premium',
+                        'Live Price': 350.00,
+                        'Price_Hygiene': '70%',
+                        'Coupon_Hygiene': '88%',
+                        'Activation_Hygiene': '0%',
+                        'Availability_Hygiene': '92%',
+                        'Deal_Hygiene': '100%',
+                        'EDD_Hygiene': '70%',
+                        'Sold By Validation': '60%',
+                        'Rating_Hygiene': '85%',
+                        'Catalog_Hygiene': '78%'
+                    }
+                ]

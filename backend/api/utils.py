@@ -3,7 +3,12 @@ from datetime import datetime, date, timedelta
 from django.utils.crypto import pbkdf2
 import json
 from django.core.cache import cache
+import logging
+from decimal import Decimal, InvalidOperation
 
+import math
+from .mock_data import *
+logger = logging.getLogger(__name__)
 
 # 🔹 Step 3: Get all brands once (cached)
 def get_all_brands_from_db():
@@ -105,3 +110,103 @@ def resolve_col(possible_names, column_names):
             return lower_to_actual[cand]
     return None
 
+# Calculate hygiene scores from percentage values
+def calculate_average_percentage_hygiene_mock(column_name):
+    """Calculate average of percentage values from a column (e.g., '100%', '50%', '0%')"""
+    values = []
+    for record in hygiene_overviewmock_data:
+        hygiene_value = record.get(column_name, '')
+        if hygiene_value and isinstance(hygiene_value, str):
+            try:
+                # Handle common error strings
+                clean_value = hygiene_value.strip()
+                if clean_value in ['#ERROR!', 'N/A', 'NULL', 'null', '']:
+                    continue
+
+                # Remove % and convert to float
+                if '%' in clean_value:
+                    numeric_value = float(clean_value.replace('%', '').strip())
+                else:
+                    numeric_value = float(clean_value)
+                values.append(numeric_value)
+            except (ValueError, AttributeError):
+                # Skip invalid values
+                continue
+    logger.debug(f"Mock {column_name} values: %s", values)
+    return (sum(values) / len(values)) if values else 0
+
+
+def _parse_percent_number(value):
+    """
+    Accepts '85%', '85', 85, Decimal('85'), etc.
+    Returns float in [0, +inf) or None if invalid/NaN/Inf.
+    Strips '%' and whitespace. Skips error tokens and NaN/Inf.
+    """
+    ERROR_STRINGS = {'#ERROR!', 'N/A', 'NULL', 'null', ''}
+    if value is None:
+        return None
+
+    # strings: strip, drop %, reject error tokens
+    if isinstance(value, str):
+        s = value.strip()
+        if s in ERROR_STRINGS:
+            return None
+        # common textual NaN/Inf
+        if s.lower() in {'nan', '+nan', '-nan', 'inf', '+inf', '-inf', 'infinity', '+infinity', '-infinity'}:
+            return None
+        if s.endswith('%'):
+            s = s[:-1].strip()
+        try:
+            f = float(s)
+        except ValueError:
+            return None
+    elif isinstance(value, (int, float)):
+        f = float(value)
+    elif isinstance(value, Decimal):
+        try:
+            if value.is_nan() or value.is_infinite():
+                return None
+            f = float(value)
+        except (InvalidOperation, ValueError):
+            return None
+    else:
+        return None
+
+    # final guard
+    if math.isnan(f) or math.isinf(f):
+        return None
+    return f
+
+
+# General function to calculate average of percentage-based hygiene scores
+def calculate_average_percentage_hygiene(column_name, data):
+    """
+    Average a percentage-ish column, ignoring invalid/NaN/Inf values.
+    Accepts values like '100%', '85', 85, Decimal, etc.
+    """
+    values = []
+    for record in data:
+        raw = record.get(column_name, '')
+        f = _parse_percent_number(raw)
+        if f is not None:
+            values.append(f)
+    return (sum(values) / len(values)) if values else 0.0
+
+# Filter out rows with too many invalid values
+def is_valid_row(row):
+    error_count = 0
+    for col in ['Price_Hygiene', 'Coupon_Hygiene', 'Activation_Hygiene', 'Availability_Hygiene', 'Deal_Hygiene', 'EDD_Hygiene', 'Sold By Validation', 'Rating_Hygiene', 'Catalog_Hygiene']:
+        value = row.get(col, '')
+        if isinstance(value, str) and value.strip() in ['#ERROR!', 'N/A', 'NULL', 'null', '']:
+            error_count += 1
+    # Allow rows with up to 3 invalid values
+    return error_count <= 3
+
+# ---------------------------------------------------------------------
+# 2️⃣ Helper: parse date safely
+# ---------------------------------------------------------------------
+def parse_date(val):
+    try:
+        return datetime.strptime(val, "%Y-%m-%d").date() if val else None
+    except ValueError:
+        return None

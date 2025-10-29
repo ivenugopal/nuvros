@@ -6,8 +6,8 @@ import json
 import calendar
 import os
 import logging
-import math
-from decimal import Decimal, InvalidOperation
+
+
 from typing import Any, Optional
 import hashlib
 from django.core.cache import cache
@@ -15,6 +15,7 @@ from django.core.cache import cache
 from .models import AppUser
 from .auth import generate_jwt, require_auth, refresh_jwt
 from .utils import *
+from .mock_data import *
 
 logger = logging.getLogger(__name__)
 
@@ -4089,83 +4090,6 @@ def get_hygiene_overview(request):
         
 
             if not table_exists:
-                # Return mock data structure for development
-                mock_data = [
-                    {
-                        'date': '2024-01-15',
-                        'brand': 'Clear',
-                        'platform': 'Amazon',
-                        'price_rule': 'Standard',
-                        'live_price': 299.00,
-                        'price_hygiene': '100%',
-                        'coupon_hygiene': '95%',
-                        'activation_hygiene': '100%',
-                        'availability_hygiene': '98%',
-                        'deal_hygiene': '100%',
-                        'edd_hygiene': '95%',
-                        'sold_by_validation': '90%',
-                        'rating_hygiene': '90%',
-                        'catalog_hygiene': '88%'
-                    },
-                    {
-                        'date': '2024-01-15',
-                        'brand': 'Clear',
-                        'platform': 'Flipkart',
-                        'price_rule': 'Standard',
-                        'live_price': 299.00,
-                        'price_hygiene': '85%',
-                        'coupon_hygiene': '75%',
-                        'activation_hygiene': '50%',
-                        'availability_hygiene': '60%',
-                        'deal_hygiene': '45%',
-                        'edd_hygiene': '80%',
-                        'sold_by_validation': '95%',
-                        'rating_hygiene': '75%',
-                        'catalog_hygiene': '82%'
-                    },
-                    {
-                        'date': '2024-01-16',
-                        'brand': 'Clear',
-                        'platform': 'Amazon',
-                        'price_rule': 'Premium',
-                        'live_price': 350.00,
-                        'price_hygiene': '70%',
-                        'coupon_hygiene': '88%',
-                        'activation_hygiene': '0%',
-                        'availability_hygiene': '92%',
-                        'deal_hygiene': '100%',
-                        'edd_hygiene': '70%',
-                        'sold_by_validation': '60%',
-                        'rating_hygiene': '85%',
-                        'catalog_hygiene': '78%'
-                    }
-                ]
-
-                # Calculate hygiene scores from percentage values
-                def calculate_average_percentage_hygiene_mock(column_name):
-                    """Calculate average of percentage values from a column (e.g., '100%', '50%', '0%')"""
-                    values = []
-                    for record in mock_data:
-                        hygiene_value = record.get(column_name, '')
-                        if hygiene_value and isinstance(hygiene_value, str):
-                            try:
-                                # Handle common error strings
-                                clean_value = hygiene_value.strip()
-                                if clean_value in ['#ERROR!', 'N/A', 'NULL', 'null', '']:
-                                    continue
-
-                                # Remove % and convert to float
-                                if '%' in clean_value:
-                                    numeric_value = float(clean_value.replace('%', '').strip())
-                                else:
-                                    numeric_value = float(clean_value)
-                                values.append(numeric_value)
-                            except (ValueError, AttributeError):
-                                # Skip invalid values
-                                continue
-                    logger.debug(f"Mock {column_name} values: %s", values)
-                    return (sum(values) / len(values)) if values else 0
-
                 # Calculate all hygiene scores using the general function
                 price_hygiene_score = calculate_average_percentage_hygiene_mock('price_hygiene')
                 coupon_hygiene_score = calculate_average_percentage_hygiene_mock('coupon_hygiene')
@@ -4179,7 +4103,7 @@ def get_hygiene_overview(request):
 
                 response_payload = {
                     'success': True,
-                    'data': mock_data,
+                    'data': hygiene_overview_mock_data,
                     'hygiene_scores': {
                         'price_hygiene_score': round(price_hygiene_score, 2),
                         'coupon_hygiene_score': round(coupon_hygiene_score, 2),
@@ -4240,7 +4164,6 @@ def get_hygiene_overview(request):
             query = f"""
                 SELECT
                     "Date",
-                    "Brand",
                     "Platform",
                     "Price Rule",
                     "Live Price",
@@ -4255,7 +4178,7 @@ def get_hygiene_overview(request):
                     "Catalog_Hygiene"
                 FROM public.ecom_consolidated
                 {where_clause}
-                ORDER BY "Date" DESC, "Platform", "Brand"
+                ORDER BY "Date" DESC, "Platform"
             """
 
             cursor.execute(query, params)
@@ -4265,102 +4188,33 @@ def get_hygiene_overview(request):
             # Convert to list of dictionaries
             data = [dict(zip(columns, row)) for row in rows]
 
-            # Filter out rows with too many invalid values
-            def is_valid_row(row):
-                error_count = 0
-                for col in ['Price_Hygiene', 'Coupon_Hygiene', 'Activation_Hygiene', 'Availability_Hygiene', 'Deal_Hygiene', 'EDD_Hygiene', 'Sold By Validation', 'Rating_Hygiene', 'Catalog_Hygiene']:
-                    value = row.get(col, '')
-                    if isinstance(value, str) and value.strip() in ['#ERROR!', 'N/A', 'NULL', 'null', '']:
-                        error_count += 1
-                # Allow rows with up to 3 invalid values
-                return error_count <= 3
-
             # Filter and log rows
             filtered = [row for row in data if is_valid_row(row)]
             logger.debug("get_hygiene_overview: filtered %d/%d rows", len(filtered), len(data))
             # Log a small sample to avoid huge logs
             try:
-                logger.debug("get_hygiene_overview: sample rows (up to 50): %s", json.dumps(filtered[:50], default=str))
+                logger.debug("get_hygiene_overview: sample rows (up to 50): %s", json.dumps(filtered[:50],
+                                                                                            default=str))
             except Exception:
                 logger.debug("get_hygiene_overview: sample rows repr: %s", repr(filtered[:50]))
             data = filtered
 
-
-            ERROR_STRINGS = {'#ERROR!', 'N/A', 'NULL', 'null', ''}
-
-            def _parse_percent_number(value):
-                """
-                Accepts '85%', '85', 85, Decimal('85'), etc.
-                Returns float in [0, +inf) or None if invalid/NaN/Inf.
-                Strips '%' and whitespace. Skips error tokens and NaN/Inf.
-                """
-                if value is None:
-                    return None
-
-                # strings: strip, drop %, reject error tokens
-                if isinstance(value, str):
-                    s = value.strip()
-                    if s in ERROR_STRINGS:
-                        return None
-                    # common textual NaN/Inf
-                    if s.lower() in {'nan', '+nan', '-nan', 'inf', '+inf', '-inf', 'infinity', '+infinity', '-infinity'}:
-                        return None
-                    if s.endswith('%'):
-                        s = s[:-1].strip()
-                    try:
-                        f = float(s)
-                    except ValueError:
-                        return None
-                elif isinstance(value, (int, float)):
-                    f = float(value)
-                elif isinstance(value, Decimal):
-                    try:
-                        if value.is_nan() or value.is_infinite():
-                            return None
-                        f = float(value)
-                    except (InvalidOperation, ValueError):
-                        return None
-                else:
-                    return None
-
-                # final guard
-                if math.isnan(f) or math.isinf(f):
-                    return None
-                return f
-            # General function to calculate average of percentage-based hygiene scores
-            def calculate_average_percentage_hygiene(column_name):
-                """
-                Average a percentage-ish column, ignoring invalid/NaN/Inf values.
-                Accepts values like '100%', '85', 85, Decimal, etc.
-                """
-                values = []
-                for record in data:
-                    raw = record.get(column_name, '')
-                    f = _parse_percent_number(raw)
-                    if f is not None:
-                        values.append(f)
-                return (sum(values) / len(values)) if values else 0.0
             # Calculate all hygiene scores using the general function
-            price_hygiene_score = calculate_average_percentage_hygiene('Price_Hygiene')
-            coupon_hygiene_score = calculate_average_percentage_hygiene('Coupon_Hygiene')
-            activation_hygiene_score = calculate_average_percentage_hygiene('Activation_Hygiene')
-            availability_hygiene_score = calculate_average_percentage_hygiene('Availability_Hygiene')
-            deal_hygiene_score = calculate_average_percentage_hygiene('Deal_Hygiene')
-            edd_hygiene_score = calculate_average_percentage_hygiene('EDD_Hygiene')
-            rating_hygiene_score = calculate_average_percentage_hygiene('Rating_Hygiene')
-            catalog_hygiene_score = calculate_average_percentage_hygiene('Catalog_Hygiene')
-            sold_by_validation_score = calculate_average_percentage_hygiene('Sold By Validation')
+            price_hygiene_score = calculate_average_percentage_hygiene('Price_Hygiene', data)
+            coupon_hygiene_score = calculate_average_percentage_hygiene('Coupon_Hygiene', data)
+            activation_hygiene_score = calculate_average_percentage_hygiene('Activation_Hygiene', data)
+            availability_hygiene_score = calculate_average_percentage_hygiene('Availability_Hygiene', data)
+            deal_hygiene_score = calculate_average_percentage_hygiene('Deal_Hygiene', data)
+            edd_hygiene_score = calculate_average_percentage_hygiene('EDD_Hygiene', data)
+            rating_hygiene_score = calculate_average_percentage_hygiene('Rating_Hygiene', data)
+            catalog_hygiene_score = calculate_average_percentage_hygiene('Catalog_Hygiene', data)
+            sold_by_validation_score = calculate_average_percentage_hygiene('Sold By Validation', data)
 
-            # Get unique brands and platforms for filter options
-            cursor.execute('SELECT DISTINCT "Brand" FROM public.ecom_consolidated WHERE "Brand" IS NOT NULL ORDER BY "Brand"')
-            brands = [row[0] for row in cursor.fetchall()]
-            
             cursor.execute('SELECT DISTINCT "Platform" FROM public.ecom_consolidated WHERE "Platform" IS NOT NULL ORDER BY "Platform"')
             platforms = [row[0] for row in cursor.fetchall()]
 
             response_payload = {
                 'success': True,
-                'data': data,
                 'hygiene_scores': {
                     'price_hygiene_score': round(price_hygiene_score, 2),
                     'coupon_hygiene_score': round(coupon_hygiene_score, 2),
@@ -4373,7 +4227,6 @@ def get_hygiene_overview(request):
                     'sold_by_validation_score': round(sold_by_validation_score, 2)
                 },
                 'options': {
-                    'brands': brands,
                     'platforms': platforms
                 },
                 'cache_hit': False
@@ -4415,15 +4268,6 @@ def get_trend_analysis(request):
             cached["cache_hit"] = True
             return Response(cached, status=status.HTTP_200_OK)
 
-        # ---------------------------------------------------------------------
-        # 2️⃣ Helper: parse date safely
-        # ---------------------------------------------------------------------
-        def parse_date(val):
-            try:
-                return datetime.strptime(val, "%Y-%m-%d").date() if val else None
-            except ValueError:
-                return None
-
         start_date = parse_date(start_date_str)
         end_date = parse_date(end_date_str)
 
@@ -4443,7 +4287,7 @@ def get_trend_analysis(request):
             )
             if not cursor.fetchone()[0]:
                 # Return mock data for development environment
-                mock_data = [
+                trend_analysis_mock_data = [
                     {"Date": "2024-01-01", "Brand": "Clear", "Platform": "Amazon", "Live Price": 299.0,
                      "Sub-Category BSR": 150.0, "Category BSR": 450.0, "Discount": 10.0},
                     {"Date": "2024-01-02", "Brand": "Clear", "Platform": "Amazon", "Live Price": 295.0,
@@ -4454,7 +4298,7 @@ def get_trend_analysis(request):
                 return Response(
                     {
                         "success": True,
-                        "data": mock_data,
+                        "data": trend_analysis_mock_data,
                         "options": {
                             "brands": ["Clear", "Dove", "Pantene"],
                             "platforms": ["Amazon", "Flipkart", "Myntra"],
@@ -4938,66 +4782,15 @@ def get_hygiene_table_data(request):
         with connection.cursor() as cursor:
             if not table_exists:
                 # Return mock data structure for development - using actual database column names
-                mock_data = [
-                    {
-                        'Date': '2024-01-15',
-                        'Brand': 'Clear',
-                        'Platform': 'Amazon',
-                        'Price Rule': 'Standard',
-                        'Live Price': 299.00,
-                        'Price_Hygiene': '100%',
-                        'Coupon_Hygiene': '95%',
-                        'Activation_Hygiene': '100%',
-                        'Availability_Hygiene': '98%',
-                        'Deal_Hygiene': '100%',
-                        'EDD_Hygiene': '95%',
-                        'Sold By Validation': '90%',
-                        'Rating_Hygiene': '90%',
-                        'Catalog_Hygiene': '88%'
-                    },
-                    {
-                        'Date': '2024-01-15',
-                        'Brand': 'Clear',
-                        'Platform': 'Flipkart',
-                        'Price Rule': 'Standard',
-                        'Live Price': 299.00,
-                        'Price_Hygiene': '85%',
-                        'Coupon_Hygiene': '75%',
-                        'Activation_Hygiene': '50%',
-                        'Availability_Hygiene': '60%',
-                        'Deal_Hygiene': '45%',
-                        'EDD_Hygiene': '80%',
-                        'Sold By Validation': '95%',
-                        'Rating_Hygiene': '75%',
-                        'Catalog_Hygiene': '82%'
-                    },
-                    {
-                        'Date': '2024-01-16',
-                        'Brand': 'Clear',
-                        'Platform': 'Amazon',
-                        'Price Rule': 'Premium',
-                        'Live Price': 350.00,
-                        'Price_Hygiene': '70%',
-                        'Coupon_Hygiene': '88%',
-                        'Activation_Hygiene': '0%',
-                        'Availability_Hygiene': '92%',
-                        'Deal_Hygiene': '100%',
-                        'EDD_Hygiene': '70%',
-                        'Sold By Validation': '60%',
-                        'Rating_Hygiene': '85%',
-                        'Catalog_Hygiene': '78%'
-                    }
-                ]
-
                 # Get unique brands and platforms for filter options
-                brands = list(set([record.get('Brand', '') for record in mock_data if record.get('Brand')]))
-                platforms = list(set([record.get('Platform', '') for record in mock_data if record.get('Platform')]))
+                brands = list(set([record.get('Brand', '') for record in hygiene_table_mock_data if record.get('Brand')]))
+                platforms = list(set([record.get('Platform', '') for record in hygiene_table_mock_data if record.get('Platform')]))
                 brands.sort()
                 platforms.sort()
 
                 return Response({
                     'success': True,
-                    'data': mock_data,
+                    'data': hygiene_table_mock_data,
                     'hygiene_columns': hygiene_columns_map,
                     'options': {
                         'brands': brands,
